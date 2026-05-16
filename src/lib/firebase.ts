@@ -12,9 +12,14 @@ import {
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const firebaseBrowserConfig = {
+  ...firebaseConfig,
+  authDomain: resolveFirebaseAuthDomain(firebaseConfig.authDomain)
+};
+
+const app = initializeApp(firebaseBrowserConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, firebaseBrowserConfig.firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
@@ -95,6 +100,13 @@ export async function testConnection() {
   }
 }
 testConnection();
+
+function resolveFirebaseAuthDomain(defaultAuthDomain: string) {
+  if (typeof window === 'undefined') return defaultAuthDomain;
+  const hostname = window.location.hostname.toLowerCase();
+  if (hostname.endsWith('.vercel.app')) return hostname;
+  return defaultAuthDomain;
+}
 
 function shouldUseRedirectFlow() {
   if (typeof window === 'undefined') return false;
