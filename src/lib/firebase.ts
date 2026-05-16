@@ -98,8 +98,14 @@ testConnection();
 
 function shouldUseRedirectFlow() {
   if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname.toLowerCase();
   const userAgent = window.navigator.userAgent || '';
+  const isProductionHost =
+    hostname.endsWith('.vercel.app') ||
+    hostname.endsWith('.github.io') ||
+    hostname === 'quant-edge-ai-ten.vercel.app' ||
+    hostname === 'adisak25144251.github.io';
   const isMobileBrowser = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(userAgent);
   const isNarrowTouchViewport = window.matchMedia?.('(max-width: 768px)').matches && window.navigator.maxTouchPoints > 0;
-  return isMobileBrowser || isNarrowTouchViewport;
+  return isProductionHost || isMobileBrowser || isNarrowTouchViewport;
 }
