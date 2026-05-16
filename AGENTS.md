@@ -170,6 +170,14 @@ Vercel deployment should use:
 - Output: `dist`
 - SPA rewrite: all routes to `/index.html`
 
+GitHub Pages deployment uses `.github/workflows/github-pages.yml`.
+It builds with `GITHUB_PAGES=true`, which sets the Vite base path to
+`/QuantEdge-AI/`. The expected public URL is:
+
+```text
+https://adisak25144251.github.io/QuantEdge-AI/
+```
+
 After deployment:
 
 - Open the production URL on desktop and mobile.
@@ -195,4 +203,3 @@ fix: improve tradingview mobile fallback
 docs: add agent operating guide
 chore: add vercel deployment config
 ```
-
