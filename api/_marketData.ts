@@ -118,10 +118,13 @@ const mapIntervalToYahoo = (interval: string) => {
   }
 };
 
-const mapIntervalRange = (interval: string, limit: number) => {
+const mapIntervalRange = (interval: string, limit: number, sourceInterval = interval) => {
   switch (interval) {
     case "15m": return `${Math.ceil((limit * 15) / 1440) + 1}d`;
-    case "60m": return `${Math.ceil((limit * 60) / 1440) + 5}d`;
+    case "60m": {
+      const hoursPerRequestedCandle = sourceInterval === "4h" ? 4 : 1;
+      return `${Math.ceil((limit * hoursPerRequestedCandle) / 24) + 5}d`;
+    }
     case "1d": return `${Math.ceil(limit / 250)}y`;
     default: return "1y";
   }
@@ -246,7 +249,7 @@ const formatYahooKlines = (data: any, interval: string, yahooInterval: string, l
 const fetchYahooKlines = async (symbol: string, interval: string, limit: number) => {
   const yahooSymbol = mapSymbolToYahoo(symbol);
   const yahooInterval = mapIntervalToYahoo(interval);
-  const range = mapIntervalRange(yahooInterval, limit);
+  const range = mapIntervalRange(yahooInterval, limit, interval);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${encodeURIComponent(yahooInterval)}&range=${encodeURIComponent(range)}`;
   const data = await fetchJsonWithTimeout(url, { headers: yahooHeaders });
   return formatYahooKlines(data, interval, yahooInterval, limit);
