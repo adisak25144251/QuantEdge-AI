@@ -1,0 +1,10 @@
+{
+  "projectId": "tutor-intelligence",
+  "appId": "1:324775737317:web:ba7e3783fe8aeca3fe610c",
+  "apiKey": "AIzaSyAU73IKGLkCDp9xfnwRcLVh_ShkyUORmLg",
+  "authDomain": "tutor-intelligence.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-6cbaea3d-207f-4dd1-8711-c11b4095793e",
+  "storageBucket": "tutor-intelligence.firebasestorage.app",
+  "messagingSenderId": "324775737317",
+  "measurementId": ""
+}

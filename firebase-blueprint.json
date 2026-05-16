@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Setup": {
+      "title": "Trade Setup",
+      "description": "Trading setups created by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "setupPayload": { "type": "string", "description": "JSON string component of setup details" }
+      },
+      "required": ["id", "symbol", "userId", "createdAt"]
+    },
+    "Trade": {
+        "title": "Journal Trade",
+        "description": "Trade executed by the user",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "userId": { "type": "string" },
+            "symbol": { "type": "string" },
+            "side": { "type": "string" },
+            "status": { "type": "string" },
+            "pnlUSD": { "type": "number" },
+            "createdAt": { "type": "number" }
+        },
+        "required": ["id", "userId", "symbol", "side", "status", "createdAt"]
+    },
+    "UserProfile": {
+        "title": "User Profile",
+        "description": "Settings like portfolio size and risk",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string" },
+            "portfolioSize": { "type": "number" },
+            "riskPercent": { "type": "number" }
+        },
+        "required": ["userId", "portfolioSize", "riskPercent"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profile/config": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User specific application configurations"
+    },
+    "/users/{userId}/setups/{setupId}": {
+        "schema": { "$ref": "#/entities/Setup" },
+        "description": "A user's saved trading setups"
+    },
+    "/users/{userId}/journal/{tradeId}": {
+        "schema": { "$ref": "#/entities/Trade" },
+        "description": "A user's trade journal entries"
+    }
+  }
+}

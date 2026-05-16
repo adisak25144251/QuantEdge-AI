@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidSetup(data, uid) {
+      return data.keys().hasAll(['id', 'userId', 'symbol', 'createdAt', 'setupPayload']) &&
+             data.keys().size() == 5 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == uid &&
+             data.symbol is string && data.symbol.size() <= 64 &&
+             data.createdAt is number &&
+             data.setupPayload is string && data.setupPayload.size() <= 100000;
+    }
+
+    function isValidTrade(data, uid) {
+      return data.keys().hasAll(['id', 'userId', 'symbol', 'side', 'status', 'createdAt', 'payload']) &&
+             data.keys().size() == 7 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == uid &&
+             data.symbol is string && data.symbol.size() <= 64 &&
+             data.side is string && (data.side == 'LONG' || data.side == 'SHORT') &&
+             data.status is string && (data.status == 'OPEN' || data.status == 'WON' || data.status == 'LOST') &&
+             data.createdAt is number &&
+             data.payload is string && data.payload.size() <= 10000;
+    }
+
+    function isValidProfile(data, uid) {
+      return data.keys().hasAll(['userId', 'portfolioSize', 'riskPercent']) &&
+             data.keys().size() == 3 &&
+             data.userId == uid &&
+             data.portfolioSize is number &&
+             data.portfolioSize > 0 &&
+             data.portfolioSize <= 100000000 &&
+             data.riskPercent is number &&
+             data.riskPercent > 0 &&
+             data.riskPercent <= 5;
+    }
+
+    function isValidAuditKind(kind) {
+      return kind == 'EVIDENCE_LEDGER' ||
+             kind == 'PLAN_VERSION' ||
+             kind == 'FORWARD_RESULT' ||
+             kind == 'POST_TRADE_REVIEW' ||
+             kind == 'PROFESSIONAL_REPORT';
+    }
+
+    function isValidAuditStatus(status) {
+      return status == 'PASS' || status == 'REVIEW' || status == 'BLOCK';
+    }
+
+    function isValidInstitutionalAuditArtifact(data, uid, kind, artifactId) {
+      return isValidAuditKind(kind) &&
+             isValidId(artifactId) &&
+             data.keys().hasAll(['id', 'kind', 'symbol', 'status', 'payloadJson', 'createdAt', 'userId']) &&
+             data.keys().size() == 7 &&
+             data.id == artifactId &&
+             data.kind == kind &&
+             data.userId == uid &&
+             data.symbol is string &&
+             data.symbol.size() <= 64 &&
+             isValidAuditStatus(data.status) &&
+             data.payloadJson is string &&
+             data.payloadJson.size() <= 100000 &&
+             data.createdAt is number;
+    }
+
+    match /users/{userId} {
+      // Profile Config
+      match /profile/config {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidProfile(incoming(), userId);
+        allow update: if isSignedIn() && request.auth.uid == userId && 
+            isValidProfile(incoming(), userId) &&
+            incoming().userId == existing().userId;
+      }
+
+      // Setups
+      match /setups/{setupId} {
+        allow read: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidId(setupId) && isValidSetup(incoming(), userId);
+        allow update: if isSignedIn() && request.auth.uid == userId && isValidId(setupId) &&
+            isValidSetup(incoming(), userId) &&
+            incoming().userId == existing().userId &&
+            incoming().createdAt == existing().createdAt;
+        allow delete: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+      }
+
+      // Journal
+      match /journal/{tradeId} {
+        allow read: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() && request.auth.uid == userId && isValidId(tradeId) && isValidTrade(incoming(), userId);
+        allow update: if isSignedIn() && request.auth.uid == userId && isValidId(tradeId) &&
+            isValidTrade(incoming(), userId) &&
+            incoming().userId == existing().userId &&
+            incoming().createdAt == existing().createdAt &&
+            existing().status == 'OPEN'; // Terminal state lock
+        allow delete: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+      }
+
+      // Institutional Audit Ledger
+      match /institutionalAudit/{kind}/items/{artifactId} {
+        allow read: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() && request.auth.uid == userId &&
+            isValidInstitutionalAuditArtifact(incoming(), userId, kind, artifactId);
+        allow update: if isSignedIn() && request.auth.uid == userId &&
+            isValidInstitutionalAuditArtifact(incoming(), userId, kind, artifactId) &&
+            incoming().userId == existing().userId &&
+            incoming().kind == existing().kind &&
+            incoming().id == existing().id &&
+            incoming().createdAt == existing().createdAt;
+        allow delete: if false;
+      }
+    }
+  }
+}
