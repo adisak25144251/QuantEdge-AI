@@ -1,8 +1,8 @@
-import { normalizeKlineRequest } from "../src/domain/market/marketDataIntegrity";
-
 const REQUEST_TIMEOUT_MS = 8_000;
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY || "";
 const MARKET_DATA_PROVIDER = (process.env.MARKET_DATA_PROVIDER || (POLYGON_API_KEY ? "polygon" : "yahoo")).toLowerCase();
+const REQUEST_INTERVALS = new Set(["15m", "1h", "4h", "1d", "1w", "1M"]);
+const REQUEST_TYPES = new Set(["CRYPTO", "US_STOCK", "STOCK", "ETF", "INDEX", "COMMODITY", "FOREX", "UNKNOWN"]);
 
 export type ApiRequest = {
   method?: string;
@@ -37,6 +37,54 @@ const queryToRecord = (query: ApiRequest["query"]) => {
   return Object.fromEntries(
     Object.entries(query).map(([key, value]) => [key, firstQueryValue(value)])
   ) as Record<string, unknown>;
+};
+
+const normalizeKlineRequest = (input: Record<string, unknown>) => {
+  const issues = [];
+  const symbol = String(input.symbol ?? "").trim().toUpperCase();
+  const interval = String(input.interval ?? "1h").trim();
+  const requestedLimit = Number(input.limit ?? 100);
+  const rawType = String(input.type ?? "UNKNOWN").trim().toUpperCase();
+
+  if (!/^[A-Z0-9._=-]{2,30}$/.test(symbol)) {
+    issues.push({
+      code: "INVALID_SYMBOL",
+      severity: "ERROR",
+      message: "Symbol must be 2-30 uppercase market characters without separators."
+    });
+  }
+
+  if (!REQUEST_INTERVALS.has(interval)) {
+    issues.push({
+      code: "INVALID_INTERVAL",
+      severity: "ERROR",
+      message: "Interval is not supported by the app market-data contract."
+    });
+  }
+
+  if (!Number.isFinite(requestedLimit) || requestedLimit <= 0) {
+    issues.push({
+      code: "INVALID_LIMIT",
+      severity: "ERROR",
+      message: "Limit must be a positive number."
+    });
+  }
+
+  if (issues.some(issue => issue.severity === "ERROR")) {
+    return { ok: false as const, issues };
+  }
+
+  const type = REQUEST_TYPES.has(rawType) ? rawType : "UNKNOWN";
+  return {
+    ok: true as const,
+    value: {
+      symbol,
+      interval,
+      limit: Math.min(1000, Math.max(1, Math.floor(requestedLimit))),
+      type
+    },
+    issues
+  };
 };
 
 const mapSymbolToYahoo = (symbol: string) => {
