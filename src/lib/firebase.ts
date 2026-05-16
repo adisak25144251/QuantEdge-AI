@@ -20,8 +20,6 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-const AUTH_POPUP_TIMEOUT_MS = 12_000;
-
 setPersistence(auth, browserLocalPersistence).catch(error => {
   console.error("Auth persistence setup failed", error);
 });
@@ -29,11 +27,13 @@ setPersistence(auth, browserLocalPersistence).catch(error => {
 export const loginWithGoogle = async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
-    return await withTimeout(
-      signInWithPopup(auth, googleProvider),
-      AUTH_POPUP_TIMEOUT_MS,
-      'auth/popup-timeout'
-    );
+
+    if (shouldUseRedirectFlow()) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+
+    return await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
     const message = String(error?.message || '').toLowerCase();
     const shouldUseRedirect = [
@@ -41,8 +41,7 @@ export const loginWithGoogle = async () => {
       'auth/cancelled-popup-request',
       'auth/operation-not-supported-in-this-environment',
       'auth/internal-error',
-      'auth/network-request-failed',
-      'auth/popup-timeout'
+      'auth/network-request-failed'
     ].includes(error?.code) || message.includes('network') || message.includes('popup') || message.includes('blocked');
 
     if (shouldUseRedirect) {
@@ -97,22 +96,10 @@ export async function testConnection() {
 }
 testConnection();
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, code: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      const error = new Error(`Authentication popup did not respond within ${timeoutMs}ms.`);
-      (error as Error & { code?: string }).code = code;
-      reject(error);
-    }, timeoutMs);
-
-    promise
-      .then(value => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch(error => {
-        window.clearTimeout(timer);
-        reject(error);
-      });
-  });
+function shouldUseRedirectFlow() {
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent || '';
+  const isMobileBrowser = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(userAgent);
+  const isNarrowTouchViewport = window.matchMedia?.('(max-width: 768px)').matches && window.navigator.maxTouchPoints > 0;
+  return isMobileBrowser || isNarrowTouchViewport;
 }
