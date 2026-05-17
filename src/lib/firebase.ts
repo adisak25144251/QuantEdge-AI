@@ -103,8 +103,10 @@ testConnection();
 
 function resolveFirebaseAuthDomain(defaultAuthDomain: string) {
   if (typeof window === 'undefined') return defaultAuthDomain;
-  const hostname = window.location.hostname.toLowerCase();
-  if (hostname.endsWith('.vercel.app')) return hostname;
+  const envAuthDomain = (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN;
+  if (typeof envAuthDomain === 'string' && envAuthDomain.trim()) {
+    return envAuthDomain.trim().toLowerCase();
+  }
   return defaultAuthDomain;
 }
 
