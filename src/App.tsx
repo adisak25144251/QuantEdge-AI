@@ -475,6 +475,7 @@ import { buildSetupIdentity, canExecuteCandidate, setupDetailsToAlert } from './
 import { validateKlines, type MarketDataIntegrityReport } from './domain/market/marketDataIntegrity';
 import { evaluateTradeRisk, type TradeRiskResult } from './domain/risk/riskPolicy';
 import { createExecutionAuditEntry, evaluatePortfolioRisk, summarizeExecutionAudit, summarizeOpenRisk, type ExecutionAuditEntry } from './domain/risk/portfolioRisk';
+import { buildRecordPlanCandidateExposure } from './domain/risk/recordPlanRisk';
 import { evaluateCorrelationRisk, type CorrelationPair } from './domain/risk/correlationRisk';
 import { evaluateRiskKillSwitch } from './domain/risk/riskKillSwitch';
 import { computePaperReadiness, computePaperStats, type PaperTrade } from './domain/paper/paperTrading';
@@ -707,22 +708,21 @@ const DashboardApp = () => {
   }), [portfolioSize, journal]);
 
   const activePortfolioRiskReport = useMemo(() => {
-    if (!setupDetails || setupDetails.isChartOnly) return null;
+    if (!setupDetails || setupDetails.isChartOnly || !activeRiskReport) return null;
 
     return evaluatePortfolioRisk({
       accountEquity: portfolioSize,
       currentTrades: journal,
-      candidate: {
+      candidate: buildRecordPlanCandidateExposure({
         symbol: setupDetails.symbol,
         side: setupDetails.side,
         entry: setupDetails.entry,
         stopLoss: setupDetails.sl,
         takeProfit: setupDetails.tp2 || setupDetails.tp,
-        sizeUnits: setupDetails.positionSizeUnits || 0,
-        sizeUsd: setupDetails.positionSizeUSD || 0
-      }
+        riskDecision: activeRiskReport
+      })
     });
-  }, [setupDetails, portfolioSize, journal]);
+  }, [setupDetails, activeRiskReport, portfolioSize, journal]);
 
   const paperStats = useMemo(() => {
     const closedPaperTrades: PaperTrade[] = journal
@@ -3265,18 +3265,18 @@ const DashboardApp = () => {
                             riskPercent,
                             manualConfirmation: userConfirmedRisk
                           });
+                          const recordCandidate = buildRecordPlanCandidateExposure({
+                            symbol: setupDetails.symbol,
+                            side: setupDetails.side,
+                            entry: setupDetails.entry,
+                            stopLoss: setupDetails.sl,
+                            takeProfit: setupDetails.tp2 || setupDetails.tp,
+                            riskDecision
+                          });
                           const portfolioDecision = evaluatePortfolioRisk({
                             accountEquity: portfolioSize,
                             currentTrades: journal,
-                            candidate: {
-                              symbol: setupDetails.symbol,
-                              side: setupDetails.side,
-                              entry: setupDetails.entry,
-                              stopLoss: setupDetails.sl,
-                              takeProfit: setupDetails.tp2 || setupDetails.tp,
-                              sizeUnits: setupDetails.positionSizeUnits || 0,
-                              sizeUsd: setupDetails.positionSizeUSD || 0
-                            }
+                            candidate: recordCandidate
                           });
                           const setupId = buildSetupIdentity({
                             symbol: setupDetails.symbol,
@@ -3318,8 +3318,8 @@ const DashboardApp = () => {
                             entry: setupDetails.entry,
                             sl: setupDetails.sl,
                             tp: setupDetails.tp2,
-                            sizeUSD: setupDetails.positionSizeUSD,
-                            sizeUnits: setupDetails.positionSizeUnits
+                            sizeUSD: recordCandidate.sizeUsd,
+                            sizeUnits: recordCandidate.sizeUnits
                           });
                           saveInstitutionalAuditArtifactToFirestore({
                             id: `${setupId}-evidence`,
