@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 import { RSI, CCI, MACD, SMA, ADX, ATR } from 'technicalindicators';
@@ -385,7 +385,7 @@ const LandingPage = ({ onLaunch }: { onLaunch: () => void }) => {
             onClick={onLaunch}
             className="bg-cyan-600 text-white px-8 py-4 rounded-full font-bold text-lg flex items-center gap-2 mx-auto transition-colors hover:bg-cyan-500"
           >
-            เข้าสู่ระบบเทรด (Launch App) <ArrowRight className="w-5 h-5" />
+            เปิดแดชบอร์ดเทรด (Launch App) <ArrowRight className="w-5 h-5" />
           </motion.button>
         </motion.div>
 
@@ -451,7 +451,7 @@ const LandingPage = ({ onLaunch }: { onLaunch: () => void }) => {
             onClick={onLaunch}
             className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg transition-all"
           >
-            เริ่มต้นใช้งานฟรี (Start for free)
+            เปิดใช้งานแดชบอร์ดฟรี (Start for free)
           </motion.button>
         </motion.div>
       </section>
@@ -465,6 +465,7 @@ import { RealtimeTicker } from './components/RealtimeTicker';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 import { auth, completeGoogleRedirectLogin, loginWithGoogle, logout } from './lib/firebase';
+import { rememberAppLaunched, shouldLaunchAppOnStartup } from './lib/authRedirectState';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, getDocs, doc, getDoc, where } from 'firebase/firestore';
 import { db } from './lib/firebase';
@@ -673,6 +674,7 @@ const DashboardApp = () => {
   const [lastAlertUpdate, setLastAlertUpdate] = useState<number>(0);
   const [authErrorModal, setAuthErrorModal] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [authFeedback, setAuthFeedback] = useState<string | null>(null);
   const [marketIntegrityReport, setMarketIntegrityReport] = useState<MarketDataIntegrityReport | null>(null);
   const [aiBackendConfigured, setAiBackendConfigured] = useState(false);
@@ -1474,6 +1476,12 @@ const DashboardApp = () => {
       } else if (e?.code === 'auth/unauthorized-domain') {
         setAuthFeedback('โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase Authentication');
         alert('โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase Authentication\n\nให้เพิ่ม localhost และโดเมน production ใน Firebase Console > Authentication > Settings > Authorized domains');
+      } else if (e?.code === 'auth/browser-environment-blocked') {
+        setAuthFeedback('เบราว์เซอร์นี้บล็อกการเก็บ session หรือ popup ของ Firebase กรุณาเปิดเว็บใน Chrome, Edge หรือ Safari โดยตรง');
+        alert('เบราว์เซอร์นี้บล็อกระบบเข้าสู่ระบบของ Firebase\n\nกรุณาเปิดเว็บใน Chrome, Edge หรือ Safari โดยตรง แล้วลองเข้าสู่ระบบอีกครั้ง');
+      } else if (e?.code === 'auth/redirect-configuration-required') {
+        setAuthFeedback('ต้องตั้งค่า Firebase Auth redirect สำหรับโดเมน production ก่อนใช้ redirect บนมือถือ');
+        alert('Google popup ถูกบล็อก และ redirect login ยังไม่ได้ตั้งค่าแบบ first-party สำหรับโดเมนนี้\n\nให้เพิ่ม OAuth Redirect URI ใน Google Cloud เป็น https://<โดเมนเว็บ>/__/auth/handler แล้วตั้งค่า VITE_FIREBASE_AUTH_DOMAIN ให้ตรงกับโดเมน production');
       } else if (e?.code === 'auth/internal-error' || message.includes('network')) {
         setAuthFeedback('เกิดปัญหาเครือข่ายขณะเชื่อมต่อ Firebase');
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อ (Network/Internal Error)\\n\\nเบราว์เซอร์ของคุณอาจมีระบบ Adblocker, Brave Shields หรือ VPN ปิดกั้นการเชื่อมต่อตัวจัดการระบบล็อกอินของแอพ (Firebase)\\nกรุณาปิด Adblocker, Shields หรืออนุญาตการเชื่อมต่อ แล้วลองใหม่อีกครั้ง');
@@ -1609,22 +1617,9 @@ const DashboardApp = () => {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    completeGoogleRedirectLogin()
-      .then(result => {
-        if (result?.user) {
-          setAuthErrorModal(false);
-        }
-      })
-      .catch((error: any) => {
-        if (error?.code === 'auth/unauthorized-domain') {
-          alert('โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase Authentication\n\nให้เพิ่ม localhost และโดเมน production ใน Firebase Console > Authentication > Settings > Authorized domains');
-        }
-      });
-  }, []);
-
-  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      setIsAuthReady(true);
       if (currentUser) {
         setAuthFeedback(null);
         // Fetch Profile
@@ -2510,7 +2505,32 @@ const DashboardApp = () => {
         </nav>
         <div className="p-4 border-t border-fuchsia-500/30 bg-black/20">
           <div className="flex items-center gap-3">
-            {user ? (
+            {!isAuthReady ? (
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-300 font-bold border border-cyan-500/40">
+                        <Clock className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-300">กำลังตรวจสอบบัญชี</p>
+                        <p className="text-xs text-cyan-400">รอ Firebase ยืนยันสถานะล็อกอิน</p>
+                      </div>
+                    </div>
+                    <button
+                      disabled
+                      className="shrink-0 rounded border border-slate-600 bg-slate-700/40 px-2 py-1 text-xs text-slate-300 cursor-wait"
+                    >
+                      ตรวจสอบ...
+                    </button>
+                  </div>
+                  {authFeedback && (
+                    <p className="mt-2 text-[10px] leading-4 text-cyan-300">
+                      {authFeedback}
+                    </p>
+                  )}
+                </div>
+            ) : user ? (
                <div className="flex-1 flex items-center justify-between">
                  <div className="flex items-center gap-3">
                    {user.photoURL ? (
@@ -4611,8 +4631,46 @@ const DashboardApp = () => {
 
 // --- App Root (Handles Routing between Landing and Dashboard) ---
 export default function App() {
-  const [isAppLaunched, setIsAppLaunched] = useState(false);
+  const [isAppLaunched, setIsAppLaunched] = useState(() => shouldLaunchAppOnStartup());
   const setMarketData = useMarketStore(state => state.setMarketData);
+
+  const handleLaunchApp = useCallback(() => {
+    rememberAppLaunched();
+    setIsAppLaunched(true);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, currentUser => {
+      if (currentUser) {
+        handleLaunchApp();
+      }
+    });
+
+    return unsubscribe;
+  }, [handleLaunchApp]);
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    completeGoogleRedirectLogin()
+      .then(result => {
+        if (!isDisposed && result?.user) {
+          handleLaunchApp();
+        }
+      })
+      .catch((error: any) => {
+        if (error?.code === 'auth/unauthorized-domain') {
+          alert('โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase Authentication\n\nให้เพิ่ม localhost และโดเมน production ใน Firebase Console > Authentication > Settings > Authorized domains');
+        } else {
+          const code = error?.code ? ` (${error.code})` : '';
+          alert(`เข้าสู่ระบบด้วย Google ไม่สำเร็จ${code}\n\nกรุณาลองใหม่อีกครั้ง หรือเปิดเว็บใน Chrome/Safari โดยตรงหากเบราว์เซอร์ในแอปบล็อกการล็อกอิน`);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [handleLaunchApp]);
 
   useEffect(() => {
     let ws: WebSocket;
@@ -4728,7 +4786,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             {!isAppLaunched ? (
               <motion.div key="landing" exit={{ opacity: 0, y: -50 }} transition={{ duration: 0.5 }}>
-                <LandingPage onLaunch={() => setIsAppLaunched(true)} />
+                <LandingPage onLaunch={handleLaunchApp} />
               </motion.div>
             ) : (
               <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
