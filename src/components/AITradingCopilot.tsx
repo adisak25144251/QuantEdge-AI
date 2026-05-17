@@ -71,6 +71,24 @@ type BotMessage =
   | { type: 'portfolio_impact'; role: 'assistant'; data: PortfolioImpact }
   | { type: 'diff'; role: 'assistant'; data: DiffExplanation };
 
+async function readAiCopilotError(response: Response): Promise<string> {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (contentType.toLowerCase().includes('application/json')) {
+    const errorBody = await response.json().catch(() => ({}));
+    if (typeof errorBody?.error === 'string' && errorBody.error.trim()) {
+      return `${errorBody.error} (${response.status})`;
+    }
+  }
+
+  const bodyText = await response.text().catch(() => '');
+  if (bodyText.toLowerCase().includes('<html') || bodyText.toLowerCase().includes('<!doctype')) {
+    return `AI backend route is unavailable on this deployment (${response.status}). Deploy the Vercel API function for /api/ai/copilot and set GEMINI_API_KEY.`;
+  }
+
+  return `AI backend request failed (${response.status})`;
+}
+
 export const AITradingCopilot = ({ journal = [] }: { journal?: any[] }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ask');
@@ -429,7 +447,7 @@ export const AITradingCopilot = ({ journal = [] }: { journal?: any[] }) => {
       }
 
       // Add system context about the current setup if available
-      let systemPrompt = "คุณคือ AI Trading Copilot ผู้ช่วยวิเคราะห์การเทรดคริปโตและตรวจสอบข้อมูล (Data Integrity) ตอบคำถามเป็นภาษาไทยอย่างมืออาชีพ กระชับ และเข้าใจง่าย และคอยให้คำแนะนำเพื่อให้การเทรดชนะเยอะที่สุด\nขณะนี้ระบบได้อัปเกรดความสามารถใหม่ล่าสุดเรียบร้อยแล้ว ได้แก่:\n1. Price Action & Market Structure (เช็คจาก Swing High/Low)\n2. ใช้ค่า ATR x 1.5 เป็น Stop Loss Buffer คอยป้องกันการสะบัดจากความผันผวน\n3. จัดทำ Confluence Scoring ที่แม่นยำขึ้น\n4. ตรวจจับ Bullish/Bearish Divergence อัตโนมัติในเบื้องหลัง";
+      let systemPrompt = "คุณคือ AI Trading Copilot ผู้ช่วยวิเคราะห์การเทรดคริปโตและตรวจสอบข้อมูล (Data Integrity) ตอบคำถามเป็นภาษาไทยอย่างมืออาชีพ กระชับ และเข้าใจง่าย ใช้ภาษาแบบมีเงื่อนไขเพื่อการศึกษา ไม่ฟันธง ไม่รับประกันกำไร และต้องเน้น risk/reward, stop-loss, invalidation และการรอ confirmation เสมอ\nขณะนี้ระบบได้อัปเกรดความสามารถใหม่ล่าสุดเรียบร้อยแล้ว ได้แก่:\n1. Price Action & Market Structure (เช็คจาก Swing High/Low)\n2. ใช้ค่า ATR x 1.5 เป็น Stop Loss Buffer คอยป้องกันการสะบัดจากความผันผวน\n3. จัดทำ Confluence Scoring ที่แม่นยำขึ้น\n4. ตรวจจับ Bullish/Bearish Divergence อัตโนมัติในเบื้องหลัง";
       systemPrompt += journalContext;
 
       if (contextData) {
@@ -449,9 +467,13 @@ export const AITradingCopilot = ({ journal = [] }: { journal?: any[] }) => {
         })
       });
 
+      const contentType = response.headers.get('content-type') || '';
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.error || 'AI backend request failed');
+        throw new Error(await readAiCopilotError(response));
+      }
+
+      if (!contentType.toLowerCase().includes('application/json')) {
+        throw new Error('AI backend route returned a non-JSON response. Please redeploy the Vercel API function for /api/ai/copilot.');
       }
 
       const data = await response.json();
@@ -464,10 +486,11 @@ export const AITradingCopilot = ({ journal = [] }: { journal?: any[] }) => {
       }]);
     } catch (error) {
       console.error("Gemini API Error:", error);
+      const detail = error instanceof Error ? error.message : String(error);
       setMessages(prev => [...prev, { 
         type: 'text', 
         role: 'assistant', 
-        content: 'ขออภัยครับ เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ AI กรุณาลองใหม่อีกครั้ง' 
+        content: `ขออภัยครับ เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ AI\n\nรายละเอียด: ${detail}` 
       }]);
     } finally {
       setIsProcessing(false);

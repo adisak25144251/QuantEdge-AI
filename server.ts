@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import crypto from "crypto";
@@ -10,6 +9,7 @@ import { evaluateSystemHealth } from "./src/domain/ops/systemHealth";
 import { evaluateDeploymentObservability } from "./src/domain/ops/deploymentObservability";
 import { evaluateReleaseReadiness } from "./src/domain/ops/releaseReadiness";
 import { normalizeKlineRequest } from "./src/domain/market/marketDataIntegrity";
+import { buildAiCopilotResponse } from "./src/server/aiCopilot";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -267,21 +267,6 @@ const requireApiAuth = async (req: AuthenticatedRequest, res: express.Response, 
     }
 };
 
-const validateAiContents = (contents: unknown) => {
-    if (!Array.isArray(contents) || contents.length === 0 || contents.length > 30) return false;
-    let totalTextLength = 0;
-    return contents.every((item: any) => {
-        if (!item || !["user", "model"].includes(item.role) || !Array.isArray(item.parts) || item.parts.length === 0 || item.parts.length > 8) {
-            return false;
-        }
-        return item.parts.every((part: any) => {
-            if (!part || typeof part.text !== "string" || part.text.length === 0 || part.text.length > 12000) return false;
-            totalTextLength += part.text.length;
-            return totalTextLength <= 60_000;
-        });
-    });
-};
-
 const normalizeScreenerSymbols = (symbolsParam: string) => {
     const rawSymbols = symbolsParam.split(",").map(symbol => symbol.trim().toUpperCase()).filter(Boolean);
     const uniqueSymbols = Array.from(new Set(rawSymbols));
@@ -433,28 +418,13 @@ app.get("/api/exchange/sandbox-status", (_req, res) => {
 });
 
 app.post("/api/ai/copilot", requireApiAuth, aiRateLimit, async (req, res) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        return res.status(503).json({ error: "AI backend is not configured." });
-    }
-
-    const { contents } = req.body || {};
-    if (!validateAiContents(contents)) {
-        return res.status(400).json({ error: "Invalid AI request payload." });
-    }
-
-    try {
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents
-        });
-
-        return res.json({ text: response.text || "" });
-    } catch (error) {
-        logServerError("Gemini backend error", error);
-        return res.status(502).json({ error: "AI backend request failed." });
-    }
+    const result = await buildAiCopilotResponse(
+        req.body?.contents,
+        process.env.GEMINI_API_KEY,
+        undefined,
+        error => logServerError("Gemini backend error", error)
+    );
+    return res.status(result.status).json(result.body);
 });
 
 const mapSymbolToYahoo = (symbol) => {
