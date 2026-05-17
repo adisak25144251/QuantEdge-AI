@@ -77,6 +77,14 @@ async function readAiCopilotError(response: Response): Promise<string> {
   if (contentType.toLowerCase().includes('application/json')) {
     const errorBody = await response.json().catch(() => ({}));
     if (typeof errorBody?.error === 'string' && errorBody.error.trim()) {
+      if (response.status === 401) {
+        return 'กรุณาเข้าสู่ระบบใหม่อีกครั้งก่อนใช้งาน AI Trading Copilot (Authentication required).';
+      }
+
+      if (response.status === 503 && errorBody.error.includes('GEMINI_API_KEY')) {
+        return 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables หรือยังไม่ได้ redeploy หลังตั้งค่า.';
+      }
+
       return `${errorBody.error} (${response.status})`;
     }
   }
