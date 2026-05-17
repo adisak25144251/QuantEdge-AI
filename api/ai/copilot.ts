@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { buildAiCopilotResponse } from '../../src/server/aiCopilot';
+import { buildAiCopilotResponse } from '../../src/server/aiCopilot.ts';
 
 type ApiRequest = IncomingMessage & {
   body?: unknown;
