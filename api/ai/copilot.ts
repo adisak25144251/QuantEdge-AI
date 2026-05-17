@@ -20,6 +20,8 @@ type AiContent = {
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'tutor-intelligence';
 const REQUEST_BODY_LIMIT_BYTES = 1_000_000;
 const AI_RATE_LIMIT_PER_MINUTE = 30;
+const DEFAULT_AI_TIMEOUT_MS = 8_000;
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 const rateLimitBuckets = new Map<string, { windowStart: number; count: number }>();
 let firebaseCertCache: { expiresAt: number; certs: Record<string, string> } | null = null;
 
@@ -81,10 +83,20 @@ async function buildAiCopilotResponse(contents: unknown): Promise<{
   try {
     const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents
-    });
+    const response = await withTimeout(
+      ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+        contents,
+        config: {
+          maxOutputTokens: 700,
+          temperature: 0.2,
+          thinkingConfig: {
+            thinkingBudget: 0
+          }
+        }
+      }),
+      normalizeTimeoutMs(Number(process.env.AI_COPILOT_TIMEOUT_MS || DEFAULT_AI_TIMEOUT_MS))
+    );
 
     return {
       status: 200,
@@ -92,6 +104,13 @@ async function buildAiCopilotResponse(contents: unknown): Promise<{
     };
   } catch (error) {
     console.error('Gemini backend error', getErrorMessage(error));
+    if (error instanceof AiCopilotTimeoutError) {
+      return {
+        status: 504,
+        body: { error: 'AI backend timed out. Please retry with a shorter prompt.' }
+      };
+    }
+
     return {
       status: 502,
       body: { error: 'AI backend request failed.' }
@@ -247,4 +266,27 @@ function getClientKey(req: ApiRequest): string {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+class AiCopilotTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`AI copilot provider timeout after ${timeoutMs}ms.`);
+    this.name = 'AiCopilotTimeoutError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeout = setTimeout(() => reject(new AiCopilotTimeoutError(timeoutMs)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
+
+function normalizeTimeoutMs(timeoutMs: number): number {
+  if (!Number.isFinite(timeoutMs)) return DEFAULT_AI_TIMEOUT_MS;
+  return Math.min(Math.max(timeoutMs, 2_000), 12_000);
 }

@@ -21,6 +21,9 @@ export interface AiCopilotResult {
 
 export type AiTextGenerator = (contents: AiContent[], apiKey: string) => Promise<string>;
 
+const DEFAULT_AI_TIMEOUT_MS = 8_000;
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+
 export function validateAiContents(contents: unknown): contents is AiContent[] {
   if (!Array.isArray(contents) || contents.length === 0 || contents.length > 30) return false;
 
@@ -42,7 +45,8 @@ export async function buildAiCopilotResponse(
   contents: unknown,
   apiKey = process.env.GEMINI_API_KEY,
   generateText: AiTextGenerator = generateGeminiText,
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  timeoutMs = Number(process.env.AI_COPILOT_TIMEOUT_MS || DEFAULT_AI_TIMEOUT_MS)
 ): Promise<AiCopilotResult> {
   if (!apiKey) {
     return {
@@ -59,13 +63,23 @@ export async function buildAiCopilotResponse(
   }
 
   try {
-    const text = await generateText(contents, apiKey);
+    const text = await withTimeout(
+      generateText(contents, apiKey),
+      normalizeTimeoutMs(timeoutMs)
+    );
     return {
       status: 200,
       body: { text: text || '' }
     };
   } catch (error) {
     onError?.(error);
+    if (error instanceof AiCopilotTimeoutError) {
+      return {
+        status: 504,
+        body: { error: 'AI backend timed out. Please retry with a shorter prompt.' }
+      };
+    }
+
     return {
       status: 502,
       body: { error: 'AI backend request failed.' }
@@ -76,9 +90,39 @@ export async function buildAiCopilotResponse(
 async function generateGeminiText(contents: AiContent[], apiKey: string): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents
+    model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    contents,
+    config: {
+      maxOutputTokens: 700,
+      temperature: 0.2,
+      thinkingConfig: {
+        thinkingBudget: 0
+      }
+    }
   });
 
   return response.text || '';
+}
+
+class AiCopilotTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`AI copilot provider timeout after ${timeoutMs}ms.`);
+    this.name = 'AiCopilotTimeoutError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeout = setTimeout(() => reject(new AiCopilotTimeoutError(timeoutMs)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
+
+function normalizeTimeoutMs(timeoutMs: number): number {
+  if (!Number.isFinite(timeoutMs)) return DEFAULT_AI_TIMEOUT_MS;
+  return Math.min(Math.max(timeoutMs, 2_000), 12_000);
 }

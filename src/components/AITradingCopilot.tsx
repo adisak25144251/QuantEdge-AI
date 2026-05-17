@@ -85,6 +85,10 @@ async function readAiCopilotError(response: Response): Promise<string> {
         return 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables หรือยังไม่ได้ redeploy หลังตั้งค่า.';
       }
 
+      if (response.status === 504) {
+        return 'ระบบ AI ตอบช้าเกินเวลาที่กำหนด กรุณาลองใหม่อีกครั้งด้วยคำถามที่สั้นลง หรือรอ 1-2 นาทีแล้วส่งใหม่.';
+      }
+
       return `${errorBody.error} (${response.status})`;
     }
   }
@@ -92,6 +96,10 @@ async function readAiCopilotError(response: Response): Promise<string> {
   const bodyText = await response.text().catch(() => '');
   if (bodyText.toLowerCase().includes('<html') || bodyText.toLowerCase().includes('<!doctype')) {
     return `AI backend route is unavailable on this deployment (${response.status}). Deploy the Vercel API function for /api/ai/copilot and set GEMINI_API_KEY.`;
+  }
+
+  if (response.status === 504) {
+    return 'ระบบ AI ตอบช้าเกินเวลาที่กำหนด กรุณาลองใหม่อีกครั้งด้วยคำถามที่สั้นลง หรือรอ 1-2 นาทีแล้วส่งใหม่.';
   }
 
   return `AI backend request failed (${response.status})`;

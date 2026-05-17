@@ -43,3 +43,16 @@ test('buildAiCopilotResponse converts provider errors to a controlled 502', asyn
   assert.equal(result.status, 502);
   assert.equal(result.body.error, 'AI backend request failed.');
 });
+
+test('buildAiCopilotResponse converts slow provider responses to a controlled 504', async () => {
+  const result = await buildAiCopilotResponse(
+    validContents,
+    'test-key',
+    () => new Promise(resolve => setTimeout(() => resolve('late response'), 2100)),
+    undefined,
+    2000
+  );
+
+  assert.equal(result.status, 504);
+  assert.equal(result.body.error, 'AI backend timed out. Please retry with a shorter prompt.');
+});
