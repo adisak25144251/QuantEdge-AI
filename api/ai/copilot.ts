@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { buildAiCopilotResponse } from '../../src/server/aiCopilot.ts';
 
 type ApiRequest = IncomingMessage & {
   body?: unknown;
@@ -11,6 +10,11 @@ type AuthenticatedUser = {
   uid: string;
   email?: string;
   emailVerified?: boolean;
+};
+
+type AiContent = {
+  role: 'user' | 'model';
+  parts: { text: string }[];
 };
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'tutor-intelligence';
@@ -47,17 +51,69 @@ export default async function handler(req: ApiRequest, res: ServerResponse) {
 
   try {
     const body = await readJsonBody(req);
-    const result = await buildAiCopilotResponse(
-      (body as any)?.contents,
-      process.env.GEMINI_API_KEY,
-      undefined,
-      error => console.error('Gemini backend error', getErrorMessage(error))
-    );
+    const result = await buildAiCopilotResponse((body as any)?.contents);
     sendJson(res, result.status, result.body);
   } catch (error) {
     console.error('AI copilot route error', getErrorMessage(error));
     sendJson(res, 400, { error: 'Invalid JSON request body.' });
   }
+}
+
+async function buildAiCopilotResponse(contents: unknown): Promise<{
+  status: number;
+  body: { text?: string; error?: string };
+}> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      status: 503,
+      body: { error: 'AI backend is not configured. Set GEMINI_API_KEY on the server.' }
+    };
+  }
+
+  if (!validateAiContents(contents)) {
+    return {
+      status: 400,
+      body: { error: 'Invalid AI request payload.' }
+    };
+  }
+
+  try {
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents
+    });
+
+    return {
+      status: 200,
+      body: { text: response.text || '' }
+    };
+  } catch (error) {
+    console.error('Gemini backend error', getErrorMessage(error));
+    return {
+      status: 502,
+      body: { error: 'AI backend request failed.' }
+    };
+  }
+}
+
+function validateAiContents(contents: unknown): contents is AiContent[] {
+  if (!Array.isArray(contents) || contents.length === 0 || contents.length > 30) return false;
+
+  let totalTextLength = 0;
+  return contents.every((item: any) => {
+    if (!item || !['user', 'model'].includes(item.role) || !Array.isArray(item.parts) || item.parts.length === 0 || item.parts.length > 8) {
+      return false;
+    }
+
+    return item.parts.every((part: any) => {
+      if (!part || typeof part.text !== 'string' || part.text.length === 0 || part.text.length > 12_000) return false;
+      totalTextLength += part.text.length;
+      return totalTextLength <= 60_000;
+    });
+  });
 }
 
 function setSecurityHeaders(res: ServerResponse) {
