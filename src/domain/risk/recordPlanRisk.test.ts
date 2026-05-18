@@ -71,3 +71,48 @@ test('buildRecordPlanCandidateExposure zeros sizing when the risk gate blocks th
   assert.equal(candidate.sizeUnits, 0);
   assert.equal(candidate.sizeUsd, 0);
 });
+
+test('buildRecordPlanCandidateExposure caps oversized notional before portfolio gate checks', () => {
+  const riskDecision = evaluateTradeRisk({
+    side: 'LONG',
+    entry: 100,
+    stopLoss: 99,
+    takeProfit: 104,
+    accountEquity: 10_000,
+    riskPercent: 1,
+    manualConfirmation: true
+  });
+
+  const uncappedCandidate = buildRecordPlanCandidateExposure({
+    symbol: 'BTCUSDT',
+    side: 'LONG',
+    entry: 100,
+    stopLoss: 99,
+    takeProfit: 104,
+    riskDecision
+  });
+  assert.equal(uncappedCandidate.sizeUsd, 10_000);
+  assert.equal(evaluatePortfolioRisk({
+    accountEquity: 10_000,
+    currentTrades: [],
+    candidate: uncappedCandidate
+  }).status, 'BLOCK');
+
+  const cappedCandidate = buildRecordPlanCandidateExposure({
+    symbol: 'BTCUSDT',
+    side: 'LONG',
+    entry: 100,
+    stopLoss: 99,
+    takeProfit: 104,
+    riskDecision,
+    maxPositionUsd: 6_000
+  });
+
+  assert.equal(cappedCandidate.sizeUnits, 60);
+  assert.equal(cappedCandidate.sizeUsd, 6_000);
+  assert.equal(evaluatePortfolioRisk({
+    accountEquity: 10_000,
+    currentTrades: [],
+    candidate: cappedCandidate
+  }).status, 'PASS');
+});

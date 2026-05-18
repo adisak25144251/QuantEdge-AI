@@ -3271,7 +3271,8 @@ const DashboardApp = () => {
                             entry: setupDetails.entry,
                             stopLoss: setupDetails.sl,
                             takeProfit: setupDetails.tp2 || setupDetails.tp,
-                            riskDecision
+                            riskDecision,
+                            maxPositionUsd: portfolioSize * 0.6
                           });
                           const portfolioDecision = evaluatePortfolioRisk({
                             accountEquity: portfolioSize,
@@ -3317,7 +3318,7 @@ const DashboardApp = () => {
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             sl: setupDetails.sl,
-                            tp: setupDetails.tp2,
+                            tp: setupDetails.tp2 || setupDetails.tp,
                             sizeUSD: recordCandidate.sizeUsd,
                             sizeUnits: recordCandidate.sizeUnits
                           });
