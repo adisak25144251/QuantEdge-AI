@@ -475,7 +475,7 @@ import { buildSetupIdentity, canExecuteCandidate, setupDetailsToAlert } from './
 import { validateKlines, type MarketDataIntegrityReport } from './domain/market/marketDataIntegrity';
 import { evaluateTradeRisk, type TradeRiskResult } from './domain/risk/riskPolicy';
 import { createExecutionAuditEntry, evaluatePortfolioRisk, summarizeExecutionAudit, summarizeOpenRisk, type ExecutionAuditEntry } from './domain/risk/portfolioRisk';
-import { buildRecordPlanCandidateExposure } from './domain/risk/recordPlanRisk';
+import { buildRecordPlanCandidateExposure, buildRecordPlanPolicyLimits } from './domain/risk/recordPlanRisk';
 import { evaluateCorrelationRisk, type CorrelationPair } from './domain/risk/correlationRisk';
 import { evaluateRiskKillSwitch } from './domain/risk/riskKillSwitch';
 import { computePaperReadiness, computePaperStats, type PaperTrade } from './domain/paper/paperTrading';
@@ -3244,15 +3244,25 @@ const DashboardApp = () => {
                     {setupDetails.isValid && !setupDetails.isChartOnly && (
                       <button 
                         onClick={() => {
+                          const takeProfit = setupDetails.tp2 || setupDetails.tp;
+                          const sameDirectionExposureUsd = setupDetails.side === 'LONG'
+                            ? openRiskSummary.longExposureUsd
+                            : openRiskSummary.shortExposureUsd;
+                          const recordPolicyLimits = buildRecordPlanPolicyLimits({
+                            requestedRiskPercent: riskPercent,
+                            accountEquity: portfolioSize,
+                            currentPortfolioHeatPercent: openRiskSummary.portfolioHeatPercent,
+                            sameDirectionExposureUsd
+                          });
                           const userConfirmedRisk = window.confirm(
-                            `โปรดยืนยันว่าได้ตรวจสอบความเสี่ยงด้วยตัวเองแล้ว\n\n${setupDetails.symbol} ${setupDetails.side}\nEntry: ${setupDetails.entry}\nSL: ${setupDetails.sl}\nTP: ${setupDetails.tp2}\nPosition: $${setupDetails.positionSizeUSD?.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                            `โปรดยืนยันว่าได้ตรวจสอบความเสี่ยงด้วยตัวเองแล้ว\n\n${setupDetails.symbol} ${setupDetails.side}\nEntry: ${setupDetails.entry}\nSL: ${setupDetails.sl}\nTP: ${takeProfit}\nRisk used for record: ${recordPolicyLimits.riskPercent.toFixed(2)}%\nMax position by exposure policy: $${recordPolicyLimits.maxPositionUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
                           );
                           const canRecord = canExecuteCandidate({
                             currentStatus: setupDetails.currentStatus,
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             sl: setupDetails.sl,
-                            tp: setupDetails.tp2 || setupDetails.tp,
+                            tp: takeProfit,
                             rr: setupDetails.rr,
                             userConfirmedRisk,
                           });
@@ -3260,9 +3270,9 @@ const DashboardApp = () => {
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             stopLoss: setupDetails.sl,
-                            takeProfit: setupDetails.tp2 || setupDetails.tp,
+                            takeProfit,
                             accountEquity: portfolioSize,
-                            riskPercent,
+                            riskPercent: recordPolicyLimits.riskPercent,
                             manualConfirmation: userConfirmedRisk
                           });
                           const recordCandidate = buildRecordPlanCandidateExposure({
@@ -3270,9 +3280,9 @@ const DashboardApp = () => {
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             stopLoss: setupDetails.sl,
-                            takeProfit: setupDetails.tp2 || setupDetails.tp,
+                            takeProfit,
                             riskDecision,
-                            maxPositionUsd: portfolioSize * 0.6
+                            maxPositionUsd: recordPolicyLimits.maxPositionUsd
                           });
                           const portfolioDecision = evaluatePortfolioRisk({
                             accountEquity: portfolioSize,
@@ -3285,7 +3295,7 @@ const DashboardApp = () => {
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             sl: setupDetails.sl,
-                            tp: setupDetails.tp2 || setupDetails.tp
+                            tp: takeProfit
                           });
                           const issueCodes = [
                             ...riskDecision.issues.map(issue => issue.code),
@@ -3318,7 +3328,7 @@ const DashboardApp = () => {
                             side: setupDetails.side,
                             entry: setupDetails.entry,
                             sl: setupDetails.sl,
-                            tp: setupDetails.tp2 || setupDetails.tp,
+                            tp: takeProfit,
                             sizeUSD: recordCandidate.sizeUsd,
                             sizeUnits: recordCandidate.sizeUnits
                           });

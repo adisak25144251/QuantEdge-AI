@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluatePortfolioRisk } from './portfolioRisk';
 import { evaluateTradeRisk } from './riskPolicy';
-import { buildRecordPlanCandidateExposure } from './recordPlanRisk';
+import { buildRecordPlanCandidateExposure, buildRecordPlanPolicyLimits } from './recordPlanRisk';
 
 test('buildRecordPlanCandidateExposure uses confirmed risk sizing instead of stale setup sizing', () => {
   const riskDecision = evaluateTradeRisk({
@@ -115,4 +115,18 @@ test('buildRecordPlanCandidateExposure caps oversized notional before portfolio 
     currentTrades: [],
     candidate: cappedCandidate
   }).status, 'PASS');
+});
+
+test('buildRecordPlanPolicyLimits caps requested risk and remaining directional exposure', () => {
+  const limits = buildRecordPlanPolicyLimits({
+    requestedRiskPercent: 5,
+    accountEquity: 10_000,
+    currentPortfolioHeatPercent: 4.5,
+    sameDirectionExposureUsd: 4_000
+  });
+
+  assert.equal(limits.riskPercent, 1.5);
+  assert.equal(limits.maxPositionUsd, 2_000);
+  assert.equal(limits.remainingHeatPercent, 1.5);
+  assert.equal(limits.remainingSameDirectionExposureUsd, 2_000);
 });
