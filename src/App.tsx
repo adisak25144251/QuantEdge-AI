@@ -470,7 +470,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, getDocs, doc, getDoc, where } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { apiFetch } from './lib/apiClient';
-import { syncProfileToFirestore, saveSetupToFirestore, deleteSetupFromFirestore, clearAllSetupsFromFirestore, executeTradeInFirestore, updateTradeInFirestore, saveInstitutionalAuditArtifactToFirestore, handleFirestoreError, OperationType } from './lib/firestoreUtils';
+import { syncProfileToFirestore, saveSetupToFirestore, deleteSetupFromFirestore, clearAllSetupsFromFirestore, executeTradeInFirestore, updateTradeInFirestore, clearJournalFromFirestore, saveInstitutionalAuditArtifactToFirestore, handleFirestoreError, OperationType } from './lib/firestoreUtils';
 import { buildSetupIdentity, canExecuteCandidate, setupDetailsToAlert } from './domain/strategy/signalSafety';
 import { validateKlines, type MarketDataIntegrityReport } from './domain/market/marketDataIntegrity';
 import { evaluateTradeRisk, type TradeRiskResult } from './domain/risk/riskPolicy';
@@ -2395,6 +2395,27 @@ const DashboardApp = () => {
     }
   };
 
+  const handleClearJournal = async () => {
+    if (!auth.currentUser) {
+      alert('กรุณาเข้าสู่ระบบด้วย Gmail ก่อนล้างประวัติการเทรด เพื่อให้ระบบลบข้อมูลตามบัญชีอีเมลของคุณ');
+      handleLogin();
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'คำเตือน: ต้องการล้างประวัติการเทรดทั้งหมดของบัญชีนี้ใช่หรือไม่?\n\nระบบจะลบข้อมูลจาก Firestore และรีเซ็ตสถิติ Win Rate / PnL ในหน้านี้'
+    );
+    if (!confirmed) return;
+
+    try {
+      await clearJournalFromFirestore();
+      clearJournal();
+      alert('ล้างประวัติการเทรดและรีเซ็ตสถิติเรียบร้อยแล้ว');
+    } catch (_error) {
+      alert('ไม่สามารถล้างประวัติการเทรดจากฐานข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   const markAlertAsRead = (id: string) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
   };
@@ -3424,7 +3445,7 @@ const DashboardApp = () => {
                   <p className="text-slate-400">ประวัติการเทรดและสถิติความแม่นยำ (Win Rate)</p>
                 </div>
                 {journal.length > 0 && (
-                  <button onClick={clearJournal} className="text-sm text-rose-400 hover:text-rose-300 transition-colors">
+                  <button onClick={handleClearJournal} className="text-sm text-rose-400 hover:text-rose-300 transition-colors">
                     ล้างประวัติทั้งหมด
                   </button>
                 )}

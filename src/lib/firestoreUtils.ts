@@ -177,6 +177,20 @@ export const updateTradeInFirestore = async (trade: any) => {
     }
 };
 
+export const clearJournalFromFirestore = async () => {
+  if (!auth.currentUser) return;
+  const uid = auth.currentUser.uid;
+  const journalRef = collection(db, 'users', uid, 'journal');
+  try {
+    const journalSnap = await getDocs(query(journalRef, where('userId', '==', uid)));
+    for (const tradeDoc of journalSnap.docs) {
+      await deleteDoc(tradeDoc.ref);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${uid}/journal`);
+  }
+};
+
 export const saveInstitutionalAuditArtifactToFirestore = async (input: Omit<InstitutionalAuditArtifactInput, 'createdAt'> & { createdAt?: number }) => {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
