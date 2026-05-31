@@ -3,6 +3,15 @@ const POLYGON_API_KEY = process.env.POLYGON_API_KEY || "";
 const MARKET_DATA_PROVIDER = (process.env.MARKET_DATA_PROVIDER || (POLYGON_API_KEY ? "polygon" : "yahoo")).toLowerCase();
 const REQUEST_INTERVALS = new Set(["15m", "1h", "4h", "1d", "1w", "1M"]);
 const REQUEST_TYPES = new Set(["CRYPTO", "US_STOCK", "STOCK", "ETF", "INDEX", "COMMODITY", "FOREX", "UNKNOWN"]);
+const BINANCE_MARKET_DATA_ENDPOINTS = [
+  "https://api.binance.com",
+  "https://data-api.binance.vision",
+  "https://api1.binance.com",
+  "https://api2.binance.com",
+  "https://api3.binance.com",
+  "https://api.binance.me",
+  "https://api.binance.info"
+];
 
 export type ApiRequest = {
   method?: string;
@@ -255,6 +264,18 @@ const fetchYahooKlines = async (symbol: string, interval: string, limit: number)
   return formatYahooKlines(data, interval, yahooInterval, limit);
 };
 
+const fetchBinanceKlines = async (symbol: string, interval: string, limit: number) => {
+  let lastError: unknown = null;
+  for (const endpoint of BINANCE_MARKET_DATA_ENDPOINTS) {
+    try {
+      return await fetchJsonWithTimeout(`${endpoint}/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("All Binance market-data endpoints failed.");
+};
+
 const normalizeScreenerSymbols = (symbolsParam: string) => {
   const rawSymbols = symbolsParam.split(",").map(symbol => symbol.trim().toUpperCase()).filter(Boolean);
   const uniqueSymbols = Array.from(new Set(rawSymbols));
@@ -300,7 +321,7 @@ export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
 
   if (type === "CRYPTO") {
     try {
-      const data = await fetchJsonWithTimeout(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`);
+      const data = await fetchBinanceKlines(symbol, interval, limit);
       setMarketDataHeaders(res, "binance");
       return res.json(data);
     } catch (_binanceError) {

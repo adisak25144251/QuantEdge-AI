@@ -20,6 +20,15 @@ const MARKET_CACHE_TTL_MS = 30_000;
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "tutor-intelligence";
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY || "";
 const MARKET_DATA_PROVIDER = (process.env.MARKET_DATA_PROVIDER || (POLYGON_API_KEY ? "polygon" : "yahoo")).toLowerCase();
+const BINANCE_MARKET_DATA_ENDPOINTS = [
+    "https://api.binance.com",
+    "https://data-api.binance.vision",
+    "https://api1.binance.com",
+    "https://api2.binance.com",
+    "https://api3.binance.com",
+    "https://api.binance.me",
+    "https://api.binance.info"
+];
 const aiRateLimitBuckets = new Map<string, { windowStart: number; count: number }>();
 const apiRateLimitBuckets = new Map<string, { windowStart: number; count: number }>();
 const marketCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -189,6 +198,18 @@ const fetchJsonWithTimeout = async (url: string, init: RequestInit = {}) => {
     } finally {
         clearTimeout(timeout);
     }
+};
+
+const fetchBinanceKlines = async (symbol: string, interval: string, limit: number) => {
+    let lastError: unknown = null;
+    for (const endpoint of BINANCE_MARKET_DATA_ENDPOINTS) {
+        try {
+            return await fetchJsonWithTimeout(`${endpoint}/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError instanceof Error ? lastError : new Error("All Binance market-data endpoints failed.");
 };
 
 const base64UrlToBuffer = (value: string) => {
@@ -428,6 +449,10 @@ app.post("/api/ai/copilot", requireApiAuth, aiRateLimit, async (req, res) => {
 });
 
 const mapSymbolToYahoo = (symbol) => {
+    const normalized = String(symbol).toUpperCase();
+    if (normalized.endsWith("USDT")) return `${normalized.slice(0, -4)}-USD`;
+    if (normalized.endsWith("USDC")) return `${normalized.slice(0, -4)}-USD`;
+
     switch (symbol) {
         case 'US100': return '^NDX';
         case 'US30': return '^DJI';
@@ -455,11 +480,14 @@ const mapIntervalToYahoo = (interval) => {
     }
 };
 
-const mapIntervalRange = (interval, limit) => {
+const mapIntervalRange = (interval, limit, sourceInterval = interval) => {
     const l = Number(limit) || 100;
     switch (interval) {
         case '15m': return `${Math.ceil((l * 15) / 1440) + 1}d`;
-        case '60m': return `${Math.ceil((l * 60) / 1440) + 5}d`;
+        case '60m': {
+            const hoursPerRequestedCandle = sourceInterval === "4h" ? 4 : 1;
+            return `${Math.ceil((l * hoursPerRequestedCandle) / 24) + 5}d`;
+        }
         case '1d': return `${Math.ceil(l / 250)}y`;
         default: return '1y';
     }
@@ -561,13 +589,13 @@ app.get("/api/proxy/klines", requireApiAuth, apiRateLimit, async (req, res) => {
 
     if (type === 'CRYPTO') {
         try {
-            const data = await fetchJsonWithTimeout(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`);
+            const data = await fetchBinanceKlines(symbol, interval, limit);
             res.setHeader("X-Market-Data-Provider", "binance");
             setCached(cacheKey, data);
             return res.json(data);
         } catch (error) {
             logServerError("Binance proxy error", error);
-            return res.status(502).json({ error: "Failed to fetch Binance data" });
+            res.setHeader("X-Market-Data-Provider", "yahoo-crypto-fallback");
         }
     }
 
@@ -588,7 +616,7 @@ app.get("/api/proxy/klines", requireApiAuth, apiRateLimit, async (req, res) => {
     try {
         const yahooSymbol = mapSymbolToYahoo(symbol);
         const yahooInterval = mapIntervalToYahoo(interval);
-        const range = mapIntervalRange(yahooInterval, limit);
+        const range = mapIntervalRange(yahooInterval, limit, interval);
         
         let url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${encodeURIComponent(yahooInterval)}&range=${encodeURIComponent(range)}`;
 
