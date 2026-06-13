@@ -1,4 +1,5 @@
 const REQUEST_TIMEOUT_MS = 8_000;
+const API_RATE_LIMIT_PER_MINUTE = 120;
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY || "";
 const MARKET_DATA_PROVIDER = (process.env.MARKET_DATA_PROVIDER || (POLYGON_API_KEY ? "polygon" : "yahoo")).toLowerCase();
 const REQUEST_INTERVALS = new Set(["15m", "1h", "4h", "1d", "1w", "1M"]);
@@ -16,6 +17,8 @@ const BINANCE_MARKET_DATA_ENDPOINTS = [
 export type ApiRequest = {
   method?: string;
   query: Record<string, string | string[] | undefined>;
+  headers?: Record<string, string | string[] | undefined>;
+  socket?: { remoteAddress?: string };
 };
 
 export type ApiResponse = {
@@ -23,6 +26,8 @@ export type ApiResponse = {
   json: (body: unknown) => void;
   setHeader: (name: string, value: string) => void;
 };
+
+const apiRateLimitBuckets = new Map<string, { windowStart: number; count: number }>();
 
 const yahooHeaders = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
@@ -41,6 +46,37 @@ const fetchJsonWithTimeout = async (url: string, init: RequestInit = {}) => {
 };
 
 const firstQueryValue = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+
+const firstHeaderValue = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+
+const getClientKey = (req: ApiRequest) => {
+  const forwardedFor = firstHeaderValue(req.headers?.["x-forwarded-for"]);
+  const forwardedClient = forwardedFor?.split(",")[0]?.trim();
+  return forwardedClient || firstHeaderValue(req.headers?.["x-real-ip"]) || req.socket?.remoteAddress || "unknown";
+};
+
+const checkApiRateLimit = (req: ApiRequest, res: ApiResponse) => {
+  const now = Date.now();
+  const clientKey = getClientKey(req);
+  const current = apiRateLimitBuckets.get(clientKey);
+
+  for (const [key, bucket] of apiRateLimitBuckets) {
+    if (now - bucket.windowStart >= 120_000) apiRateLimitBuckets.delete(key);
+  }
+
+  if (!current || now - current.windowStart >= 60_000) {
+    apiRateLimitBuckets.set(clientKey, { windowStart: now, count: 1 });
+    return true;
+  }
+
+  current.count += 1;
+  if (current.count > API_RATE_LIMIT_PER_MINUTE) {
+    res.status(429).json({ error: "API request rate limit exceeded." });
+    return false;
+  }
+
+  return true;
+};
 
 const queryToRecord = (query: ApiRequest["query"]) => {
   return Object.fromEntries(
@@ -311,6 +347,7 @@ export const setMarketDataHeaders = (res: ApiResponse, provider: string) => {
 
 export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
   if (req.method && req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });
+  if (!checkApiRateLimit(req, res)) return;
 
   const normalized = normalizeKlineRequest(queryToRecord(req.query));
   if (!normalized.ok) {
@@ -356,6 +393,7 @@ export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
 
 export const handleUsStockScreener = async (req: ApiRequest, res: ApiResponse) => {
   if (req.method && req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });
+  if (!checkApiRateLimit(req, res)) return;
 
   const symbolsParam = String(firstQueryValue(req.query.symbols) || "");
   const symbols = normalizeScreenerSymbols(symbolsParam);

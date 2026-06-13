@@ -130,3 +130,28 @@ test('buildRecordPlanPolicyLimits caps requested risk and remaining directional 
   assert.equal(limits.remainingHeatPercent, 1.5);
   assert.equal(limits.remainingSameDirectionExposureUsd, 2_000);
 });
+
+test('buildRecordPlanCandidateExposure treats zero remaining allocation as a hard cap', () => {
+  const riskDecision = evaluateTradeRisk({
+    side: 'LONG',
+    entry: 10,
+    stopLoss: 9.5,
+    takeProfit: 12,
+    accountEquity: 500,
+    riskPercent: 1,
+    manualConfirmation: true
+  });
+
+  const candidate = buildRecordPlanCandidateExposure({
+    symbol: 'OUST',
+    side: 'LONG',
+    entry: 10,
+    stopLoss: 9.5,
+    takeProfit: 12,
+    riskDecision,
+    maxPositionUsd: 0
+  });
+
+  assert.equal(candidate.sizeUnits, 0);
+  assert.equal(candidate.sizeUsd, 0);
+});

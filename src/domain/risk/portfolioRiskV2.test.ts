@@ -30,4 +30,19 @@ describe('portfolioRiskV2', () => {
     assert.equal(report.status, 'BLOCK');
     assert(report.issues.some(issue => issue.code === 'DAILY_LOSS_LIMIT_EXCEEDED'));
   });
+
+  it('blocks invalid numeric inputs before risk budget calculations', () => {
+    const report = evaluatePortfolioRiskV2({
+      sectorExposurePercent: Number.NaN,
+      betaExposure: 0.8,
+      correlatedExposurePercent: -1,
+      volatilityTargetPercent: 10,
+      projectedDailyLossPercent: 1,
+      projectedWeeklyLossPercent: 2
+    });
+
+    assert.equal(report.status, 'BLOCK');
+    assert.equal(Number.isFinite(report.riskBudgetUsedPercent), true);
+    assert(report.issues.some(issue => issue.code === 'INVALID_PORTFOLIO_RISK_INPUT'));
+  });
 });

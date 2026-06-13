@@ -37,11 +37,20 @@ export function evaluateDataSourceRedundancy(input: DataSourceRedundancyInput): 
 
   const usableSources = input.sources.filter(source => {
     const hasPrice = Number.isFinite(source.latestClose ?? Number.NaN) && Number(source.latestClose) > 0;
-    const fresh = now - source.lastUpdatedAt <= staleAfterMs;
+    const fresh = source.lastUpdatedAt <= now && now - source.lastUpdatedAt <= staleAfterMs;
     return source.status === 'PASS' && hasPrice && fresh;
   });
 
   const staleSources = input.sources.filter(source => now - source.lastUpdatedAt > staleAfterMs);
+  const futureSources = input.sources.filter(source => source.lastUpdatedAt > now);
+  if (futureSources.length > 0) {
+    issues.push({
+      code: 'FUTURE_DATA_SOURCE',
+      severity: 'ERROR',
+      message: 'At least one market-data source timestamp is ahead of the validation clock.'
+    });
+  }
+
   if (staleSources.length > 0) {
     issues.push({
       code: 'STALE_DATA_SOURCE',
@@ -84,7 +93,7 @@ export function evaluateDataSourceRedundancy(input: DataSourceRedundancyInput): 
 
   return {
     status,
-    selectedSource: selected?.name ?? null,
+    selectedSource: status === 'BLOCK' ? null : selected?.name ?? null,
     healthySources: usableSources.length,
     maxDivergencePercent,
     issues

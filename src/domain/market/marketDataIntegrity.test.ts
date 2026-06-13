@@ -140,3 +140,20 @@ test('validateKlines passes fresh monotonic candles with enough history', () => 
   assert.equal(report.stale, false);
   assert.equal(report.issues.length, 0);
 });
+
+test('validateKlines blocks candles with impossible future timestamps', () => {
+  const now = 1_700_000_000_000;
+  const candles = [
+    makeCandle(now - 60_000, 100),
+    makeCandle(now + 5 * 60_000, 101)
+  ];
+
+  const report = validateKlines(candles, {
+    interval: '1m',
+    minCandles: 2,
+    now
+  });
+
+  assert.equal(report.status, 'BLOCK');
+  assert.equal(report.issues.some(issue => issue.code === 'FUTURE_CANDLE'), true);
+});

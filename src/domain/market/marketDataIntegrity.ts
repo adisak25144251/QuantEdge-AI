@@ -118,6 +118,7 @@ export function validateKlines(
   const candles = Array.isArray(klines) ? klines : [];
   const minCandles = options.minCandles ?? 50;
   const intervalMs = parseIntervalMs(options.interval);
+  const now = options.now ?? Date.now();
 
   if (!Array.isArray(klines) || candles.length === 0) {
     issues.push({
@@ -160,6 +161,24 @@ export function validateKlines(
       break;
     }
 
+    if (intervalMs && openTime > now + intervalMs) {
+      issues.push({
+        code: 'FUTURE_CANDLE',
+        severity: 'ERROR',
+        message: 'Candle open time is unexpectedly ahead of the validation clock.'
+      });
+      break;
+    }
+
+    if (intervalMs && closeTime > now + intervalMs * 2) {
+      issues.push({
+        code: 'FUTURE_CANDLE_CLOSE',
+        severity: 'ERROR',
+        message: 'Candle close time is unexpectedly ahead of the validation clock.'
+      });
+      break;
+    }
+
     previousOpenTime = openTime;
     lastCloseTime = closeTime;
   }
@@ -174,7 +193,6 @@ export function validateKlines(
 
   let stale = false;
   if (intervalMs && lastCloseTime !== null) {
-    const now = options.now ?? Date.now();
     const staleAfterIntervals = options.staleAfterIntervals ?? 3;
     stale = now - lastCloseTime > intervalMs * staleAfterIntervals;
 

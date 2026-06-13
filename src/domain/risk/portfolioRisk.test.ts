@@ -112,6 +112,54 @@ test('evaluatePortfolioRisk reviews duplicate symbol exposure', () => {
   assert.equal(result.issues.some(issue => issue.code === 'DUPLICATE_SYMBOL_EXPOSURE'), true);
 });
 
+test('evaluatePortfolioRisk blocks invalid equity and candidate exposure', () => {
+  const result = evaluatePortfolioRisk({
+    accountEquity: 0,
+    currentTrades: [],
+    candidate: {
+      symbol: 'BTCUSDT',
+      side: 'LONG',
+      entry: 100,
+      stopLoss: 105,
+      takeProfit: 95,
+      sizeUnits: 0,
+      sizeUsd: 0
+    }
+  });
+
+  assert.equal(result.status, 'BLOCK');
+  assert.equal(result.issues.some(issue => issue.code === 'INVALID_ACCOUNT_EQUITY'), true);
+  assert.equal(result.issues.some(issue => issue.code === 'INVALID_CANDIDATE_EXPOSURE'), true);
+});
+
+test('evaluatePortfolioRisk blocks a zero-sized capped candidate instead of allowing an empty plan', () => {
+  const riskDecision = {
+    status: 'PASS' as const,
+    issues: [],
+    rewardRisk: 4,
+    riskAmountUsd: 5,
+    positionSizeUnits: 10,
+    positionSizeUsd: 100
+  };
+
+  const result = evaluatePortfolioRisk({
+    accountEquity: 500,
+    currentTrades: [],
+    candidate: {
+      symbol: 'OUST',
+      side: 'LONG',
+      entry: 10,
+      stopLoss: 9.5,
+      takeProfit: 12,
+      sizeUnits: riskDecision.positionSizeUnits * 0,
+      sizeUsd: riskDecision.positionSizeUsd * 0
+    }
+  });
+
+  assert.equal(result.status, 'BLOCK');
+  assert.equal(result.issues.some(issue => issue.code === 'INVALID_CANDIDATE_EXPOSURE'), true);
+});
+
 test('createExecutionAuditEntry records deterministic allow and block decisions', () => {
   const entry = createExecutionAuditEntry({
     setupId: 'BTCUSDT-1H-LONG',

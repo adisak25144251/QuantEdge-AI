@@ -47,4 +47,19 @@ describe('dataSourceRedundancy', () => {
     assert.equal(report.status, 'REVIEW');
     assert(report.issues.some(issue => issue.code === 'SOURCE_PRICE_DIVERGENCE'));
   });
+
+  it('blocks sources with timestamps in the future', () => {
+    const report = evaluateDataSourceRedundancy({
+      sources: [
+        { name: 'future-feed', status: 'PASS', latestClose: 100, latencyMs: 20, lastUpdatedAt: 61_000 },
+        { name: 'stale-feed', status: 'PASS', latestClose: 100, latencyMs: 30, lastUpdatedAt: 1_000 }
+      ],
+      now: 1_000,
+      staleAfterMs: 5_000
+    });
+
+    assert.equal(report.status, 'BLOCK');
+    assert.equal(report.selectedSource, null);
+    assert(report.issues.some(issue => issue.code === 'FUTURE_DATA_SOURCE'));
+  });
 });

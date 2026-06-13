@@ -17,6 +17,24 @@ export interface PortfolioRiskReportV2 {
 
 export function evaluatePortfolioRiskV2(input: PortfolioRiskInputV2): PortfolioRiskReportV2 {
   const issues: { code: string; detail: string }[] = [];
+  const numericFields: Array<[keyof PortfolioRiskInputV2, number]> = [
+    ['sectorExposurePercent', input.sectorExposurePercent],
+    ['betaExposure', input.betaExposure],
+    ['correlatedExposurePercent', input.correlatedExposurePercent],
+    ['volatilityTargetPercent', input.volatilityTargetPercent],
+    ['projectedDailyLossPercent', input.projectedDailyLossPercent],
+    ['projectedWeeklyLossPercent', input.projectedWeeklyLossPercent]
+  ];
+
+  for (const [field, value] of numericFields) {
+    if (!Number.isFinite(value) || value < 0) {
+      issues.push({
+        code: 'INVALID_PORTFOLIO_RISK_INPUT',
+        detail: `${field} must be a finite non-negative number.`
+      });
+    }
+  }
+
   if (input.sectorExposurePercent > 35) issues.push({ code: 'SECTOR_CONCENTRATION_HIGH', detail: 'Sector exposure exceeds 35%.' });
   if (input.betaExposure > 1.6) issues.push({ code: 'BETA_EXPOSURE_HIGH', detail: 'Beta exposure exceeds 1.6.' });
   if (input.correlatedExposurePercent > 50) issues.push({ code: 'CORRELATION_CLUSTER_HIGH', detail: 'Correlated exposure exceeds 50%.' });
@@ -31,13 +49,17 @@ export function evaluatePortfolioRiskV2(input: PortfolioRiskInputV2): PortfolioR
     input.volatilityTargetPercent / 22,
     input.projectedDailyLossPercent / 2.5,
     input.projectedWeeklyLossPercent / 6
-  ];
+  ].filter(Number.isFinite);
   const riskBudgetUsedPercent = Math.round((budgetParts.reduce((sum, value) => sum + value, 0) / budgetParts.length) * 100);
-  const blocking = issues.some((issue) => issue.code.includes('LIMIT_EXCEEDED') || issue.code === 'CORRELATION_CLUSTER_HIGH');
+  const blocking = issues.some((issue) =>
+    issue.code === 'INVALID_PORTFOLIO_RISK_INPUT' ||
+    issue.code.includes('LIMIT_EXCEEDED') ||
+    issue.code === 'CORRELATION_CLUSTER_HIGH'
+  );
 
   return {
     status: blocking ? 'BLOCK' : issues.length > 0 ? 'REVIEW' : 'PASS',
-    riskBudgetUsedPercent,
+    riskBudgetUsedPercent: Number.isFinite(riskBudgetUsedPercent) ? riskBudgetUsedPercent : 0,
     issues
   };
 }

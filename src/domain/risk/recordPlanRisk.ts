@@ -33,9 +33,11 @@ export function buildRecordPlanCandidateExposure(input: RecordPlanCandidateInput
   const riskSizedUnits = canUseRiskSizing ? safeNumber(input.riskDecision.positionSizeUnits) : 0;
   const riskSizedUsd = canUseRiskSizing ? safeNumber(input.riskDecision.positionSizeUsd) : 0;
   const cappedUsd = capPositionUsd(riskSizedUsd, input.maxPositionUsd);
-  const cappedUnits = input.entry > 0 && cappedUsd < riskSizedUsd
+  const cappedUnits = input.entry > 0 && cappedUsd > 0 && cappedUsd < riskSizedUsd
     ? cappedUsd / input.entry
-    : riskSizedUnits;
+    : cappedUsd <= 0 || input.entry <= 0
+      ? 0
+      : riskSizedUnits;
 
   return {
     symbol: input.symbol,
@@ -76,9 +78,11 @@ function safeNumber(value: number): number {
 }
 
 function capPositionUsd(positionUsd: number, maxPositionUsd?: number): number {
-  const max = Number.isFinite(maxPositionUsd) && Number(maxPositionUsd) > 0
-    ? Number(maxPositionUsd)
-    : Number.POSITIVE_INFINITY;
+  const max = maxPositionUsd === undefined
+    ? Number.POSITIVE_INFINITY
+    : Number.isFinite(maxPositionUsd) && Number(maxPositionUsd) >= 0
+      ? Number(maxPositionUsd)
+      : 0;
   return Math.min(positionUsd, max);
 }
 

@@ -113,6 +113,23 @@ export function evaluatePortfolioRisk(input: EvaluatePortfolioRiskInput): Portfo
   const issues: PortfolioRiskIssue[] = [];
   const maxPortfolioHeatPercent = input.maxPortfolioHeatPercent ?? 6;
   const maxSameDirectionExposurePercent = input.maxSameDirectionExposurePercent ?? 60;
+
+  if (!Number.isFinite(input.accountEquity) || input.accountEquity <= 0) {
+    issues.push({
+      code: 'INVALID_ACCOUNT_EQUITY',
+      severity: 'ERROR',
+      message: 'Account equity must be a positive number before portfolio risk can be evaluated.'
+    });
+  }
+
+  if (!isValidCandidate(input.candidate)) {
+    issues.push({
+      code: 'INVALID_CANDIDATE_EXPOSURE',
+      severity: 'ERROR',
+      message: 'Candidate exposure must contain positive entry, stop, target, size, and valid trade geometry.'
+    });
+  }
+
   const summary = summarizeOpenRisk({
     accountEquity: input.accountEquity,
     trades: input.currentTrades
@@ -213,6 +230,23 @@ function calculateTradeRiskUsd(trade: OpenTradeLike): number {
 function calculateCandidateRiskUsd(candidate: CandidateExposure): number {
   const priceRisk = Math.abs(safeNumber(candidate.entry) - safeNumber(candidate.stopLoss));
   return priceRisk * safeNumber(candidate.sizeUnits);
+}
+
+function isValidCandidate(candidate: CandidateExposure): boolean {
+  const values = [
+    candidate.entry,
+    candidate.stopLoss,
+    candidate.takeProfit,
+    candidate.sizeUnits,
+    candidate.sizeUsd
+  ];
+  if (!values.every(value => Number.isFinite(value) && value > 0)) return false;
+
+  if (candidate.side === 'LONG') {
+    return candidate.stopLoss < candidate.entry && candidate.takeProfit > candidate.entry;
+  }
+
+  return candidate.stopLoss > candidate.entry && candidate.takeProfit < candidate.entry;
 }
 
 function percent(value: number, denominator: number): number {
