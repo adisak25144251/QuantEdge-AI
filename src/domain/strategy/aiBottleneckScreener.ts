@@ -49,6 +49,7 @@ export interface AiBottleneckInput {
   recentRunUpPercent: number | null;
   monthlyRunUpPercent?: number | null;
   dilutionRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
+  fundamentalsVerified?: boolean;
 }
 
 export interface AiBottleneckScore {
@@ -95,6 +96,7 @@ export function scoreAiBottleneckCandidate(input: AiBottleneckInput): AiBottlene
   if (input.catalystAgeDays !== null && input.catalystAgeDays > 180) issues.push('CATALYST_OLDER_THAN_180_DAYS');
   if (input.averageVolume !== null && input.averageVolume < 500_000) issues.push('LOW_LIQUIDITY');
   if (input.dilutionRisk === 'HIGH') issues.push('DILUTION_RISK_HIGH');
+  if (input.fundamentalsVerified === false) issues.push('FUNDAMENTALS_REQUIRE_LIVE_VERIFICATION');
   if (extended) issues.push('TOO_EXTENDED_WAIT_FOR_BASE');
   if (input.monthlyRunUpPercent !== null && input.monthlyRunUpPercent !== undefined && input.monthlyRunUpPercent > 100 && !hasFreshBase(input.pattern)) issues.push('MONTHLY_RUNUP_OVER_100_NO_BASE');
   if (input.rsi !== null && input.rsi > 80) issues.push('RSI_EXTENDED_WAIT_PULLBACK');
@@ -154,12 +156,14 @@ function scoreSupplyConstraint(input: AiBottleneckInput): number {
 
 function scoreBottleneckCatalyst(input: AiBottleneckInput): number {
   if (!input.catalyst) return 3;
+  if (input.catalystAgeDays === null) return 3;
   if (input.catalystAgeDays !== null && input.catalystAgeDays <= 30) return 15;
   if (input.catalystAgeDays !== null && input.catalystAgeDays <= 180) return 11;
   return 7;
 }
 
 function scoreBottleneckFinancials(input: AiBottleneckInput): number {
+  if (input.fundamentalsVerified === false) return 3;
   let score = 5;
   if (input.revenueGrowth !== null && input.revenueGrowth > 20) score += 4;
   if (input.grossMarginTrend === 'EXPANDING') score += 2;
@@ -183,6 +187,7 @@ function scoreBottleneckTechnical(input: AiBottleneckInput): number {
 }
 
 function scoreBottleneckValuation(input: AiBottleneckInput): number {
+  if (input.fundamentalsVerified === false) return 2;
   let score = 5;
   if (input.valuation.ps !== null && input.valuation.ps <= 8) score += 3;
   if (input.valuation.evSales !== null && input.valuation.evSales <= 8) score += 2;

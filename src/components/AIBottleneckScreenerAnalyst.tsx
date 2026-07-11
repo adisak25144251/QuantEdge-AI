@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Cpu, Database, Gauge, LineChart, RefreshCw, Se
 import { scoreAiBottleneckCandidate, type AiBottleneckCategory, type AiBottleneckGroup, type AiBottleneckScore } from '../domain/strategy/aiBottleneckScreener';
 import { buildAiBottleneckTradingPlan, type AiBottleneckTradingPlan } from '../domain/strategy/aiBottleneckTradingPlan';
 import { detectCandlePatterns } from '../domain/market/candlePatternEngine';
+import { evaluateAiBottleneckDailyEligibility, evaluateAiBottleneckSmallMidEligibility } from '../domain/strategy/aiBottleneckEligibility';
 import { apiFetch } from '../lib/apiClient';
 
 type BottleneckMeta = {
@@ -10,7 +11,7 @@ type BottleneckMeta = {
   companyName: string;
   category: AiBottleneckCategory;
   catalyst: string;
-  catalystAgeDays: number;
+  catalystAgeDays: number | null;
   backlogOrContract: string;
   revenueGrowth: number | null;
   grossMarginTrend: 'EXPANDING' | 'STABLE' | 'COMPRESSING' | 'UNKNOWN';
@@ -283,7 +284,9 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.category)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatMoney(row.marketCap)}</td>
                       <td className="px-3 py-3 text-white">{row.price === null ? DATA_REQUIRED_TH : `$${row.price.toFixed(2)}`}</td>
-                      <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.catalyst)} ({row.catalystAgeDays} วัน)</td>
+                      <td className="px-3 py-3 text-slate-300 min-w-56">
+                        {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                      </td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">{toThaiDisplay(row.technical.pattern)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.technical.rsi, 1)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.relativeVolume, 2)}</td>
@@ -321,7 +324,7 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                   </div>
                   <DeepLine label="1. ทำไมเป็น AI Bottleneck" value={`อยู่ในหมวด ${row.category} ซึ่งเป็นข้อจำกัดเชิงกายภาพของ AI infrastructure ไม่ใช่แค่ AI software narrative.`} />
                   <DeepLine label="2. ตลาดอาจประเมินผิด" value={`ตลาดอาจยังให้ค่าน้ำหนักกับ ${row.backlogOrContract} ต่ำกว่าความสำคัญหาก AI capacity โตต่อเนื่อง 1-12 เดือน.`} />
-                  <DeepLine label="3. Catalyst re-rate" value={`${row.catalyst} ภายใน ${row.catalystAgeDays} วัน และต้องติดตามว่ารายได้, backlog, margin หรือ contract ยืนยัน thesis หรือไม่.`} />
+                  <DeepLine label="3. Catalyst re-rate" value={`${row.catalyst} | อายุ catalyst: ${row.catalystAgeDays === null ? 'Data required' : `${row.catalystAgeDays} วัน`} และต้องยืนยันจากข่าว/filing ที่มี timestamp จริงก่อนใช้เป็น gate.`} />
                   <DeepLine label="4. ความเสี่ยงหลัก" value={row.issues.length > 0 ? row.issues.join(' | ') : 'Valuation, execution, liquidity, customer concentration, failed breakout, and sector rotation risk.'} />
                   <DeepLine label="5. จุดเข้าที่เหมาะสม" value={row.entryZone} />
                   <DeepLine label="6. ไม่ควรไล่ราคา" value={`ถ้า RSI > 80, RVOL พุ่งแต่ปิดต่ำ, หรือราคาวิ่งเกิน 100% ใน 1 เดือนโดยยังไม่มี VCP/retest/base ใหม่ ให้จัดเป็น Extended / Wait Pullback.`} />
@@ -509,7 +512,9 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       <td className="px-3 py-3 text-slate-300">{formatMoney(row.freeCashFlow)}</td>
                       <td className="px-3 py-3 text-slate-300">{toThaiDisplay(row.cashDebtProfile)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-64">{toThaiDisplay(row.backlogOrContract)}</td>
-                      <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.catalyst)} ({row.catalystAgeDays} วัน)</td>
+                      <td className="px-3 py-3 text-slate-300 min-w-56">
+                        {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                      </td>
                       <td className="px-3 py-3 text-slate-300">P/S {formatNumber(row.valuation.ps, 1)} | EV/S {formatNumber(row.valuation.evSales, 1)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">SMA {toThaiDisplay(row.technical.sma20)}/{toThaiDisplay(row.technical.sma50)}/{toThaiDisplay(row.technical.sma200)} | RSI {formatNumber(row.technical.rsi, 1)} | RS {formatNumber(row.technical.relativeStrength, 1)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">{toThaiDisplay(row.technical.pattern)}</td>
@@ -589,7 +594,7 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
     const sma50 = numberOrNull(item?.quote?.fiftyDayAverage ?? sma(closes, 50));
     const sma200 = numberOrNull(item?.quote?.twoHundredDayAverage ?? sma(closes, 200));
     const fiftyTwoWeekHigh = numberOrNull(item?.quote?.fiftyTwoWeekHigh ?? (closes.length > 0 ? Math.max(...closes.slice(-252)) : null));
-    const distanceFrom52WeekHigh = price !== null && fiftyTwoWeekHigh !== null && fiftyTwoWeekHigh > 0 ? ((price - fiftyTwoWeekHigh) / fiftyTwoWeekHigh) * 100 : null;
+    const distanceFrom52WeekHigh = price !== null && fiftyTwoWeekHigh !== null && fiftyTwoWeekHigh > 0 ? ((fiftyTwoWeekHigh - price) / fiftyTwoWeekHigh) * 100 : null;
     const recentRunUpPercent = closes.length >= 5 ? ((closes[closes.length - 1] - closes[closes.length - 5]) / Math.max(Math.abs(closes[closes.length - 5]), 1)) * 100 : null;
     const monthlyRunUpPercent = closes.length >= 22 ? ((closes[closes.length - 1] - closes[closes.length - 22]) / Math.max(Math.abs(closes[closes.length - 22]), 1)) * 100 : null;
     const relativeStrength = closes.length >= 20 ? ((closes[closes.length - 1] - closes[closes.length - 20]) / Math.max(Math.abs(closes[closes.length - 20]), 1)) * 100 : null;
@@ -614,7 +619,7 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       cashDebtProfile: meta.cashDebtProfile,
       backlogOrContract: meta.backlogOrContract,
       catalyst: meta.catalyst,
-      catalystAgeDays: meta.catalystAgeDays,
+      catalystAgeDays: null,
       valuation: meta.valuation,
       sma20Status: price !== null && sma20 !== null ? price >= sma20 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
@@ -624,7 +629,8 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       pattern: candlePattern,
       recentRunUpPercent,
       monthlyRunUpPercent,
-      dilutionRisk: meta.dilutionRisk
+      dilutionRisk: meta.dilutionRisk,
+      fundamentalsVerified: false
     });
 
     return {
@@ -640,7 +646,7 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       cashDebtProfile: meta.cashDebtProfile,
       backlogOrContract: meta.backlogOrContract,
       catalyst: meta.catalyst,
-      catalystAgeDays: meta.catalystAgeDays,
+      catalystAgeDays: null,
       valuation: meta.valuation,
       issues: Array.from(new Set([...scored.issues, ...patternReport.warnings])),
       technical: {
@@ -658,26 +664,38 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
 }
 
 function qualifiesDailyScan(row: BottleneckRow): boolean {
-  const marketCapOk = row.marketCap === null || (row.marketCap >= 100_000_000 && row.marketCap <= 20_000_000_000);
-  const priceOk = row.price === null || (row.price >= 1 && row.price <= 100);
-  const liquidityOk = row.averageVolume === null || row.averageVolume > 500_000;
-  const catalystOk = row.catalystAgeDays <= 180;
-  const hasDemandEvidence = Boolean(row.backlogOrContract && row.backlogOrContract !== 'Data required');
-  const sma20Ok = row.technical.sma20 === 'ABOVE' || row.technical.sma20 === 'UNKNOWN';
-  const sma50Ok = row.technical.sma50 === 'ABOVE' || row.technical.sma50 === 'UNKNOWN';
-  const rsiOk = row.technical.rsi === null || row.technical.rsi <= 80;
-  const notTooExtended = !(row.technical.monthlyRunUpPercent !== null && row.technical.monthlyRunUpPercent > 100 && !/base|retest|vcp|dry-up|cup|handle|triangle|bull flag/i.test(row.technical.pattern));
-  const patternOk = /vcp|bull flag|triangle|cup|handle|retest|base/i.test(row.technical.pattern);
-  return marketCapOk && priceOk && liquidityOk && catalystOk && hasDemandEvidence && sma20Ok && sma50Ok && rsiOk && notTooExtended && patternOk;
+  return evaluateAiBottleneckDailyEligibility({
+    marketCap: row.marketCap,
+    price: row.price,
+    averageVolume: row.averageVolume,
+    relativeVolume: row.relativeVolume,
+    catalystAgeDays: row.catalystAgeDays,
+    hasDemandEvidence: Boolean(row.backlogOrContract && row.backlogOrContract !== 'Data required'),
+    sma20Status: row.technical.sma20,
+    sma50Status: row.technical.sma50,
+    rsi: row.technical.rsi,
+    monthlyRunUpPercent: row.technical.monthlyRunUpPercent,
+    distanceFrom52WeekHighPercent: row.technical.distanceFrom52WeekHigh,
+    pattern: row.technical.pattern
+  }).eligible;
 }
 
 function qualifiesSmallMidScan(row: BottleneckRow): boolean {
-  const marketCapOk = row.marketCap === null || (row.marketCap >= 100_000_000 && row.marketCap <= 5_000_000_000);
-  const priceOk = row.price === null || (row.price >= 1 && row.price <= 50);
-  const liquidityOk = row.averageVolume === null || row.averageVolume > 300_000;
-  const relativeVolumeOk = row.relativeVolume === null || row.relativeVolume > 1.3;
   const themeOk = /Power|Energy|Cloud|Compute|Data Center|Optical|Photonics|Memory|Storage|Packaging|Testing|Cooling|Grid|Edge AI/i.test(`${row.category} ${row.backlogOrContract}`);
-  return marketCapOk && priceOk && liquidityOk && relativeVolumeOk && themeOk;
+  return themeOk && evaluateAiBottleneckSmallMidEligibility({
+    marketCap: row.marketCap,
+    price: row.price,
+    averageVolume: row.averageVolume,
+    relativeVolume: row.relativeVolume,
+    catalystAgeDays: row.catalystAgeDays,
+    hasDemandEvidence: Boolean(row.backlogOrContract && row.backlogOrContract !== 'Data required'),
+    sma20Status: row.technical.sma20,
+    sma50Status: row.technical.sma50,
+    rsi: row.technical.rsi,
+    monthlyRunUpPercent: row.technical.monthlyRunUpPercent,
+    distanceFrom52WeekHighPercent: row.technical.distanceFrom52WeekHigh,
+    pattern: row.technical.pattern
+  }).eligible;
 }
 
 function buildTradingPlanRows(smallMidRows: BottleneckRow[], dailyRows: BottleneckRow[]): { row: BottleneckRow; plan: AiBottleneckTradingPlan }[] {
@@ -720,9 +738,9 @@ function classifySmallMidGroup(row: BottleneckRow): SmallMidGroup {
     || row.issues.includes('MONTHLY_RUNUP_OVER_100_NO_BASE')
     || (rsi !== null && rsi > 85);
   const hasBase = /vcp|bull flag|triangle|cup|handle|base|retest|dry-up/i.test(row.technical.pattern);
-  const nearHigh = row.technical.distanceFrom52WeekHigh === null || row.technical.distanceFrom52WeekHigh >= -25;
-  const liquid = row.averageVolume === null || row.averageVolume > 300_000;
-  const confirmingVolume = row.relativeVolume === null || row.relativeVolume > 1.3;
+  const nearHigh = row.technical.distanceFrom52WeekHigh !== null && row.technical.distanceFrom52WeekHigh <= 25;
+  const liquid = row.averageVolume !== null && row.averageVolume > 300_000;
+  const confirmingVolume = row.relativeVolume !== null && row.relativeVolume > 1.3;
   const speculative = row.issues.includes('DILUTION_RISK_HIGH')
     || row.cashDebtProfile === 'LEVERED'
     || row.revenueGrowth === null
@@ -730,8 +748,8 @@ function classifySmallMidGroup(row: BottleneckRow): SmallMidGroup {
 
   if (extended || !liquid || row.score < 50) return 'Avoid / Too Extended';
   if (speculative) return 'Speculative Only';
-  if (row.score >= 75 && hasBase && nearHigh && confirmingVolume && (rsi === null || (rsi >= 50 && rsi <= 75))) return 'Breakout Ready';
-  if (row.score >= 65 && hasBase && (rsi === null || rsi <= 80)) return 'Early Accumulation';
+  if (row.score >= 75 && hasBase && nearHigh && confirmingVolume && rsi !== null && rsi >= 50 && rsi <= 75) return 'Breakout Ready';
+  if (row.score >= 65 && hasBase && rsi !== null && rsi >= 50 && rsi <= 80) return 'Early Accumulation';
   if (row.score >= 60) return 'Wait Pullback';
   return 'Speculative Only';
 }

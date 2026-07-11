@@ -409,7 +409,9 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.relativeVolume, 2)}</td>
                       <td className={`px-3 py-3 ${row.rsi !== null && row.rsi > 85 ? 'text-rose-300' : 'text-slate-300'}`}>{formatNumber(row.rsi, 1)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">{toThaiDisplay(row.technicalPattern)}</td>
-                      <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.catalyst)} ({row.catalystAgeDays ?? '?'} วัน)</td>
+                      <td className="px-3 py-3 text-slate-300 min-w-56">
+                        {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                      </td>
                       <td className="px-3 py-3 text-slate-300 min-w-44">{toThaiDisplay(row.entryZone)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-44">{toThaiDisplay(row.stopLossZone)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-44">{toThaiDisplay(row.targetZone)}</td>
@@ -610,7 +612,7 @@ function buildRows(payload: any[]): ScreenerRow[] {
       sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       distanceFrom52WeekHighPercent,
       catalyst: meta.catalyst,
-      catalystAgeDays: meta.catalystAgeDays,
+      catalystAgeDays: null,
       revenueGrowth: null,
       earningsTrend: 'UNKNOWN',
       cashDebtDilutionRisk: 'UNKNOWN',
@@ -640,7 +642,7 @@ function buildRows(payload: any[]): ScreenerRow[] {
       sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       distanceFrom52WeekHighPercent,
       catalyst: meta.catalyst,
-      catalystAgeDays: meta.catalystAgeDays,
+      catalystAgeDays: null,
       revenueGrowth: null,
       earningsTrend: 'UNKNOWN',
       cashDebtDilutionRisk: 'UNKNOWN',

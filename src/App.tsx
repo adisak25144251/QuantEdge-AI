@@ -471,7 +471,7 @@ import { collection, query, getDocs, doc, getDoc, where } from 'firebase/firesto
 import { db } from './lib/firebase';
 import { apiFetch } from './lib/apiClient';
 import { syncProfileToFirestore, saveSetupToFirestore, deleteSetupFromFirestore, clearAllSetupsFromFirestore, executeTradeInFirestore, updateTradeInFirestore, clearJournalFromFirestore, saveInstitutionalAuditArtifactToFirestore, handleFirestoreError, OperationType } from './lib/firestoreUtils';
-import { buildSetupIdentity, canExecuteCandidate, setupDetailsToAlert } from './domain/strategy/signalSafety';
+import { buildSetupCacheKey, buildSetupIdentity, canExecuteCandidate, isSetupCacheKeyForSymbol, setupDetailsToAlert } from './domain/strategy/signalSafety';
 import { validateKlines, type MarketDataIntegrityReport } from './domain/market/marketDataIntegrity';
 import { evaluateTradeRisk, type TradeRiskResult } from './domain/risk/riskPolicy';
 import { createExecutionAuditEntry, evaluatePortfolioRisk, summarizeExecutionAudit, summarizeOpenRisk, type ExecutionAuditEntry } from './domain/risk/portfolioRisk';
@@ -525,6 +525,8 @@ import { evaluatePortfolioRiskV2 } from './domain/risk/portfolioRiskV2';
 import { buildAiResearchMemoV2 } from './domain/ai/aiResearchMemoV2';
 import { buildProfessionalAuditReportV2 } from './domain/report/professionalAuditReportV2';
 import { evaluateOpsMonitoringV2 } from './domain/ops/opsMonitoringV2';
+import { detectCandlePatterns } from './domain/market/candlePatternEngine';
+import { calculateTechnicalConfluence } from './domain/strategy/technicalConfluence';
 
 const waitForLazyRetry = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1576,10 +1578,15 @@ const DashboardApp = () => {
 
   // --- Deterministic setup state shared by the analysis and alert views ---
   const setupStateRef = useRef<Record<string, { version: number, side: 'LONG' | 'SHORT', entry: number, sl: number, tp: number, rr: number, hash: string }>>({});
+  const clearCachedSetupsForSymbol = (symbol: string) => {
+    Object.keys(setupStateRef.current).forEach(key => {
+      if (isSetupCacheKeyForSymbol(key, symbol)) delete setupStateRef.current[key];
+    });
+  };
   const openSymbolInAnalysis = (symbol: string, assetType: 'STOCK' | 'ETF' | 'CRYPTO' | 'INDEX' | 'COMMODITY' | 'FOREX' | 'UNKNOWN' = 'STOCK', exchange = 'NASDAQ') => {
     const normalized = symbol.trim().toUpperCase();
     if (!normalized) return;
-    delete setupStateRef.current[normalized];
+    clearCachedSetupsForSymbol(normalized);
     setSetupDetails(buildChartAnalysisPlaceholder(normalized, exchange));
     setLatestKlines([]);
     setMarketIntegrityReport(null);
@@ -1680,6 +1687,11 @@ const DashboardApp = () => {
 
     const fetchAndCompute = async () => {
       try {
+        const setupCacheKey = buildSetupCacheKey({
+          symbol: selectedChartSymbol,
+          timeframe: selectedTimeframe,
+          assetType: selectedAssetType
+        });
         const isSelectedUsEquity = isUsEquityAsset(selectedAssetType);
         const higherTimeframeLimit = isSelectedUsEquity ? 300 : 100;
         const marketDataRetries = 1;
@@ -1779,6 +1791,8 @@ const DashboardApp = () => {
         const opens = dataSelected.map((d: BinanceKline) => parseFloat(d[1]));
         const volumes = dataSelected.map((d: BinanceKline) => parseFloat(d[5]));
         const currentPrice = closes[closes.length - 1];
+        const patternReport = detectCandlePatterns(dataSelected);
+        const strongestPatternConfidence = patternReport.signals[0]?.confidence ?? null;
         
         const rsiResult = RSI.calculate({ values: closes, period: 14 });
         const currentRsi = rsiResult.length > 0 ? Math.round(rsiResult[rsiResult.length - 1]) : 50;
@@ -1850,8 +1864,8 @@ const DashboardApp = () => {
 
         // Determine Trade Direction (isLong) FIRST so SMC agents know what to look for
         let tradeIsLong = false;
-        if (setupStateRef.current[selectedChartSymbol]) {
-            tradeIsLong = setupStateRef.current[selectedChartSymbol].side === 'LONG';
+        if (setupStateRef.current[setupCacheKey]) {
+            tradeIsLong = setupStateRef.current[setupCacheKey].side === 'LONG';
         } else {
             tradeIsLong = bias1D.includes('Bullish')
               ? true
@@ -1910,7 +1924,7 @@ const DashboardApp = () => {
         }
 
         // Initialize or get existing setup state for symbol to keep it in sync with alerts
-        if (!setupStateRef.current[selectedChartSymbol]) {
+        if (!setupStateRef.current[setupCacheKey]) {
           // Refine Entry based on SMC if available
           let entry = currentPrice;
           if (fvgFound) {
@@ -1944,7 +1958,7 @@ const DashboardApp = () => {
             tp,
           });
 
-          setupStateRef.current[selectedChartSymbol] = {
+          setupStateRef.current[setupCacheKey] = {
             version: 1,
             side,
             entry,
@@ -1955,7 +1969,7 @@ const DashboardApp = () => {
           };
         }
 
-        const state = setupStateRef.current[selectedChartSymbol];
+        const state = setupStateRef.current[setupCacheKey];
         const isLong = state.side === 'LONG';
         const price = currentPrice;
         
@@ -1972,8 +1986,9 @@ const DashboardApp = () => {
         const momentumAgent = isLong ? (rsi > 40 && parseFloat(macdHist) > 0 ? 'AGREE' : 'DISAGREE') : (rsi < 60 && parseFloat(macdHist) < 0 ? 'AGREE' : 'DISAGREE');
         const volumeAgent = volumeSpike ? 'AGREE' : 'NEUTRAL';
         const smcAgent = (fvgFound || obFound) ? 'AGREE' : 'NEUTRAL';
+        const patternAgent = strongestPatternConfidence !== null && strongestPatternConfidence >= 70 ? 'AGREE' : 'NEUTRAL';
         
-        const agents = [trendAgent, momentumAgent, volumeAgent, smcAgent];
+        const agents = [trendAgent, momentumAgent, volumeAgent, smcAgent, patternAgent];
         const signalAgreementCount = agents.filter(a => a === 'AGREE').length;
         const signalDisagreeCount = agents.filter(a => a === 'DISAGREE').length;
         
@@ -1987,40 +2002,24 @@ const DashboardApp = () => {
         // 4. Market / Environment Agents
         const isEnvPass = !hasNews && parseFloat(spread) < price * 0.001; // Spread check
         
-        // --- Confidence Scoring System ---
-        let calculatedConfidence = 50; // Base score
-        
-        // Trend Alignment (+30)
-        if (trendAgent === 'AGREE') calculatedConfidence += 30;
-        else if (trendAgent === 'NEUTRAL') calculatedConfidence += 10;
-        else calculatedConfidence -= 20;
-        
-        // Momentum Alignment (+20)
-        if (momentumAgent === 'AGREE') calculatedConfidence += 20;
-        else calculatedConfidence -= 10;
-        
-        // Volume Confirmation (+10)
-        if (volumeAgent === 'AGREE') calculatedConfidence += 10;
-        
-        // SMC Confluence (+20)
-        if (smcAgent === 'AGREE') calculatedConfidence += 20;
-
-        // Divergence Confluence (+15)
         let statusReason = '';
-        if ((isLong && divergenceAgent === 'BULLISH') || (!isLong && divergenceAgent === 'BEARISH')) {
-            calculatedConfidence += 15;
+        const divergenceAligned = (isLong && divergenceAgent === 'BULLISH') || (!isLong && divergenceAgent === 'BEARISH');
+        if (divergenceAligned) {
             statusReason += ' [RSI Divergence]';
         }
-        
-        // Risk/Reward Bonus (+10)
-        if (rrValue >= 2.0) calculatedConfidence += 10;
-        else if (rrValue < 1.6) calculatedConfidence -= 20;
-        
-        // Market Regime Penalty (-15 if choppy)
-        if (marketRegime === 'Ranging/Choppy') calculatedConfidence -= 15;
-        
-        // Cap confidence between 0 and 100
-        calculatedConfidence = Math.max(0, Math.min(100, calculatedConfidence));
+
+        const confluence = calculateTechnicalConfluence({
+          trend: trendAgent,
+          momentum: momentumAgent,
+          volume: volumeAgent,
+          structure: smcAgent,
+          patternConfidence: strongestPatternConfidence,
+          rewardRisk: rrValue,
+          regime: marketRegime === 'Trending' ? 'TRENDING' : marketRegime === 'Ranging/Choppy' ? 'CHOPPY' : 'NEUTRAL',
+          divergenceAligned,
+          dataStatus: combinedIntegrity.status
+        });
+        const calculatedConfidence = confluence.score;
         
         // 5. Fusion / Voting Rules & Execution Gate
         let currentStatus: 'ACTIONABLE' | 'WAIT' | 'INVALIDATED' | 'AVOID' = 'WAIT';
@@ -2095,7 +2094,7 @@ const DashboardApp = () => {
           side: state.side,
           currentStatus,
           statusReason,
-          setupType: isLong ? 'Pullback Continuation (LONG)' : 'Resistance Rejection (SHORT)',
+          setupType: `${patternReport.primaryPattern} (${isLong ? 'LONG' : 'SHORT'})`,
           multiTfContext,
           displayTfLabel,
           whyEntry,
@@ -2195,7 +2194,11 @@ const DashboardApp = () => {
       type,
       isRead: false,
       isMuted: false,
-      setupVersion: setupStateRef.current[setupDetails.symbol]?.version || 1,
+      setupVersion: setupStateRef.current[buildSetupCacheKey({
+        symbol: setupDetails.symbol,
+        timeframe: selectedTimeframe,
+        assetType: selectedAssetType
+      })]?.version || 1,
       setupHash: snapshot.id,
       satisfiedConditionsCount: snapshot.conditionsSatisfied.length,
       totalConditionsCount: Math.max(snapshot.conditionsSatisfied.length + snapshot.pendingConditions.length, 1),
@@ -2208,7 +2211,7 @@ const DashboardApp = () => {
       if (existing) return prev;
       return [newAlert, ...prev].slice(0, 50);
     });
-  }, [setupDetails, selectedTimeframe]);
+  }, [setupDetails, selectedTimeframe, selectedAssetType]);
 
   useEffect(() => {
     setUnreadAlertsCount(alerts.filter(a => !a.isRead).length);
@@ -2823,7 +2826,7 @@ const DashboardApp = () => {
                     value={`${selectedAssetType}|${selectedChartExchange}|${selectedChartSymbol}`}
                     onChange={(e) => {
                       const [type, exch, sym] = e.target.value.split('|');
-                      delete setupStateRef.current[sym];
+                      clearCachedSetupsForSymbol(sym);
                       setSetupDetails(buildChartAnalysisPlaceholder(sym, exch));
                       setLatestKlines([]);
                       setMarketIntegrityReport(null);

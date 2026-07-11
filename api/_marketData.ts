@@ -340,9 +340,12 @@ const smaFromValues = (values: number[], period: number) => {
   return sample.reduce((sum, value) => sum + value, 0) / period;
 };
 
-export const setMarketDataHeaders = (res: ApiResponse, provider: string) => {
+export const setMarketDataHeaders = (res: ApiResponse, provider: string, fallbackFrom?: string) => {
   res.setHeader("Cache-Control", "s-maxage=20, stale-while-revalidate=60");
   res.setHeader("X-Market-Data-Provider", provider);
+  res.setHeader("X-Market-Data-Observed-At", new Date().toISOString());
+  res.setHeader("X-Market-Data-Provenance", "server-verified-upstream");
+  if (fallbackFrom) res.setHeader("X-Market-Data-Fallback-From", fallbackFrom);
 };
 
 export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
@@ -364,7 +367,7 @@ export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
     } catch (_binanceError) {
       try {
         const data = await fetchYahooKlines(symbol, interval, limit);
-        setMarketDataHeaders(res, "yahoo-crypto-fallback");
+        setMarketDataHeaders(res, "yahoo-crypto-fallback", "binance");
         return res.json(data);
       } catch (_yahooError) {
         return res.status(502).json({ error: "Failed to fetch crypto market data" });
@@ -384,10 +387,19 @@ export const handleKlines = async (req: ApiRequest, res: ApiResponse) => {
 
   try {
     const data = await fetchYahooKlines(symbol, interval, limit);
-    setMarketDataHeaders(res, "yahoo");
-    return res.json(data);
+      setMarketDataHeaders(res, "yahoo", "polygon");
+      return res.json(data);
   } catch (_error) {
-    return res.status(502).json({ error: "Failed to fetch market data" });
+    if (isUsEquityType(type) && POLYGON_API_KEY && getActiveEquityProvider() !== "polygon") {
+      try {
+        const candles = await fetchPolygonAggregateCandles(symbol, interval, limit);
+        setMarketDataHeaders(res, "polygon-fallback", "yahoo");
+        return res.json(candlesToKlines(candles));
+      } catch (_polygonError) {
+        // Structured failure below prevents silent synthetic data.
+      }
+    }
+    return res.status(502).json({ error: "Failed to fetch market data", status: "DATA_REQUIRED", providersAttempted: isUsEquityType(type) && POLYGON_API_KEY ? ["yahoo", "polygon"] : ["yahoo"] });
   }
 };
 
@@ -497,7 +509,7 @@ export const handleUsStockScreener = async (req: ApiRequest, res: ApiResponse) =
         candles: chartsBySymbol[symbol] || []
       };
     });
-    setMarketDataHeaders(res, "yahoo");
+    setMarketDataHeaders(res, "yahoo", getActiveEquityProvider() === "polygon" ? "polygon" : undefined);
     return res.json(result);
   } catch (_error) {
     return res.status(502).json({ error: "Failed to fetch US stock screener data" });

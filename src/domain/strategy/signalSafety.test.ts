@@ -1,11 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildSetupCacheKey,
   buildSetupIdentity,
   canExecuteCandidate,
+  isSetupCacheKeyForSymbol,
   setupDetailsToAlert,
   toProfessionalReadiness,
 } from './signalSafety';
+
+test('setup cache key isolates timeframe and asset type', () => {
+  const hourly = buildSetupCacheKey({ symbol: 'btcusdt', timeframe: '1h', assetType: 'crypto' });
+  const daily = buildSetupCacheKey({ symbol: 'BTCUSDT', timeframe: '1d', assetType: 'CRYPTO' });
+
+  assert.equal(hourly, 'BTCUSDT|1h|CRYPTO');
+  assert.notEqual(hourly, daily);
+  assert.equal(isSetupCacheKeyForSymbol(hourly, 'btcusdt'), true);
+  assert.equal(isSetupCacheKeyForSymbol(hourly, 'ETHUSDT'), false);
+});
 
 test('buildSetupIdentity is deterministic for equivalent setup inputs', () => {
   const first = buildSetupIdentity({

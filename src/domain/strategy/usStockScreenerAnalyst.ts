@@ -363,6 +363,7 @@ function collectMissingData(input: UsStockAnalystCandidateInput): string[] {
 
 function scoreCatalyst(catalyst: string | null, catalystAgeDays: number | null): number {
   if (!catalyst) return 3;
+  if (catalystAgeDays === null) return 3;
   if (catalystAgeDays !== null && catalystAgeDays <= 30) return 15;
   if (catalystAgeDays !== null && catalystAgeDays <= 60) return 9;
   return 7;

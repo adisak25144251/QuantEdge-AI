@@ -11,6 +11,12 @@ export interface SetupIdentityInput {
   tp: number;
 }
 
+export interface SetupCacheKeyInput {
+  symbol: string;
+  timeframe: string;
+  assetType: string;
+}
+
 export interface ExecutionCandidateInput extends Omit<SetupIdentityInput, 'symbol' | 'timeframe'> {
   currentStatus: SetupStatus;
   rr: number | string;
@@ -79,6 +85,18 @@ export const buildSetupIdentity = (input: SetupIdentityInput): string => {
     normalizeNumber(input.sl),
     normalizeNumber(input.tp),
   ].join('-');
+};
+
+export const buildSetupCacheKey = (input: SetupCacheKeyInput): string => {
+  return [
+    input.symbol.trim().toUpperCase(),
+    input.timeframe.trim(),
+    input.assetType.trim().toUpperCase()
+  ].join('|');
+};
+
+export const isSetupCacheKeyForSymbol = (key: string, symbol: string): boolean => {
+  return key.startsWith(`${symbol.trim().toUpperCase()}|`);
 };
 
 export const hasValidRiskGeometry = (side: SetupSide, entry: number, sl: number, tp: number): boolean => {
