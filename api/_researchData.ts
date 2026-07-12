@@ -5,7 +5,7 @@ import type { ApiRequest, ApiResponse } from './_marketData.js';
 const SEC_BASE = 'https://data.sec.gov';
 const SEC_TICKERS_URL = 'https://www.sec.gov/files/company_tickers.json';
 const TIMEOUT_MS = 8_000;
-const SEC_USER_AGENT = process.env.SEC_USER_AGENT || 'QuantEdge-AI/1.0 https://github.com/adisak25144251/QuantEdge-AI';
+const SEC_USER_AGENT = process.env.SEC_USER_AGENT || 'QuantEdge-AI educational-research admin@example.invalid';
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY || '';
 const RESEARCH_RATE_LIMIT_PER_MINUTE = 10;
 
