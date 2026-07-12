@@ -4,6 +4,7 @@ import { analyzeSingleStockBreakoutSwing, evaluateDailyUsStockScan, evaluateSmal
 import { buildUsStockTradingPlan, type UsStockTradingPlan } from '../domain/strategy/usStockTradingPlan';
 import { detectCandlePatterns } from '../domain/market/candlePatternEngine';
 import { apiFetch } from '../lib/apiClient';
+import { describeMaterialFiling, fetchFilingEvidence, type FilingEvidenceItem } from '../lib/researchClient';
 
 type ScreenerRow = UsStockAnalystScore & {
   companyName: string;
@@ -21,6 +22,7 @@ type ScreenerRow = UsStockAnalystScore & {
   distanceFrom52WeekHighPercent: number | null;
   catalyst: string;
   catalystAgeDays: number | null;
+  catalystSourceUrl: string | null;
   revenueGrowth: number | null;
   earningsTrend: string;
   cashDebtDilutionRisk: string;
@@ -141,11 +143,14 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
       setError(null);
       try {
         const symbols = WATCHLIST_UNIVERSE.map(item => item.ticker).join(',');
-        const response = await apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(symbols)}`);
+        const [response, filingEvidence] = await Promise.all([
+          apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(symbols)}`),
+          fetchFilingEvidence(WATCHLIST_UNIVERSE.map(item => item.ticker)).catch(() => new Map<string, FilingEvidenceItem>())
+        ]);
         if (!response.ok) throw new Error('US stock screener data unavailable.');
         const payload = await response.json();
         if (cancelled) return;
-        setRows(buildRows(payload));
+        setRows(buildRows(payload, filingEvidence));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'US stock screener data unavailable.');
@@ -173,7 +178,8 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
       return statusWeight(b.dailyScanStatus) - statusWeight(a.dailyScanStatus) || b.score - a.score;
     })
     .slice(0, 10), [filteredRows]);
-  const dailyTopThree = dailyScanRows.slice(0, 3);
+  const dailyTopThree = dailyScanRows.filter(row => row.dailyScanStatus === 'PASS').slice(0, 3);
+  const dailyPassedCount = dailyScanRows.filter(row => row.dailyScanStatus === 'PASS').length;
   const smallCapRows = useMemo(() => [...filteredRows]
     .filter(row => row.theme.includes('AI Back-End') || row.theme.includes('AI Bottleneck') || row.theme.includes('AI Robotics'))
     .sort((a, b) => b.smallCap.score - a.smallCap.score)
@@ -185,9 +191,10 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
   }), [smallCapRows]);
   const riskRows = [...filteredRows].sort((a, b) => b.warnings.length + b.missingData.length - (a.warnings.length + a.missingData.length)).slice(0, 5);
   const tradingPlanRows = useMemo(() => {
-    const eligible = dailyScanRows.filter(row => row.finalView !== 'Avoid' && row.dailyScanStatus !== 'BLOCK');
-    const sourceRows = eligible.length > 0 ? eligible : dailyScanRows;
-    return sourceRows.slice(0, 10).map(row => ({ row, plan: buildTradingPlan(row) }));
+    return dailyScanRows
+      .filter(row => row.finalView !== 'Avoid' && row.dailyScanStatus === 'PASS')
+      .slice(0, 10)
+      .map(row => ({ row, plan: buildTradingPlan(row) }));
   }, [dailyScanRows]);
 
   const scrollToSection = (ref: React.RefObject<HTMLElement | null>) => {
@@ -201,10 +208,14 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
     setSingleLoading(true);
     setSingleError(null);
     try {
-      const response = await apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(ticker)}`);
+      const [response, researchResponse] = await Promise.all([
+        apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(ticker)}`),
+        apiFetch(`/api/research/us-stock?symbol=${encodeURIComponent(ticker)}`).catch(() => null)
+      ]);
       if (!response.ok) throw new Error('Single-stock data unavailable.');
       const payload = await response.json();
-      setSingleAnalysis(buildSingleAnalysisFromPayload(payload, ticker));
+      const research = researchResponse?.ok ? await researchResponse.json() : null;
+      setSingleAnalysis(buildSingleAnalysisFromPayload(payload, ticker, research));
     } catch (err) {
       setSingleError(err instanceof Error ? err.message : 'Single-stock data unavailable.');
       setSingleAnalysis(buildSingleAnalysisFromPayload([], ticker));
@@ -236,7 +247,7 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <InfoCard onClick={() => scrollToSection(dailySectionRef)} icon={<BarChart3 className="w-5 h-5" />} title="ภาพรวมตลาด" value={`${dailyScanRows.length} ตัวผ่านสแกน`} detail="Watchlist หุ้นสหรัฐที่อาจเกิด breakout ภายใน 1-4 สัปดาห์ในธีม AI infrastructure" />
+        <InfoCard onClick={() => scrollToSection(dailySectionRef)} icon={<BarChart3 className="w-5 h-5" />} title="ภาพรวมตลาด" value={`${dailyPassedCount} ผ่านเกณฑ์จาก ${dailyScanRows.length} ตัว`} detail="Watchlist หุ้นสหรัฐที่อาจเกิด breakout ภายใน 1-4 สัปดาห์ในธีม AI infrastructure" />
         <InfoCard onClick={() => scrollToSection(tableSectionRef)} icon={<Target className="w-5 h-5" />} title="เกณฑ์รายวัน" value="RVOL > 1.5" detail="ราคา $1-$30, Market Cap $100M-$10B, RSI 50-75, อยู่เหนือ SMA20/SMA50, catalyst ไม่เกิน 30 วัน" />
         <InfoCard onClick={() => scrollToSection(riskSectionRef)} icon={<ShieldAlert className="w-5 h-5" />} title="นโยบายความเสี่ยง" value="ไม่ไล่ราคา" detail="RSI > 85 หรือราคาพุ่งแรงเกิน 50% ให้รอสร้างฐานใหม่ก่อน" />
         <InfoCard onClick={() => scrollToSection(tradingPlanSectionRef)} icon={<Database className="w-5 h-5" />} title="คุณภาพข้อมูล" value={error ? 'โหมดสำรอง' : loading ? 'กำลังโหลด' : 'เชื่อมต่อข้อมูลสด'} detail={error ? toThaiDisplay(error) : `ข้อมูลพื้นฐานที่ขาดจะแสดงเป็น ${DATA_REQUIRED_TH} แทนการเดา`} />
@@ -411,6 +422,7 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
                       <td className="px-3 py-3 text-slate-300 min-w-48">{toThaiDisplay(row.technicalPattern)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">
                         {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                        {row.catalystSourceUrl && <a href={row.catalystSourceUrl} target="_blank" rel="noreferrer" className="block mt-1 text-[10px] text-cyan-300 hover:text-white">SEC source</a>}
                       </td>
                       <td className="px-3 py-3 text-slate-300 min-w-44">{toThaiDisplay(row.entryZone)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-44">{toThaiDisplay(row.stopLossZone)}</td>
@@ -574,7 +586,7 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
   );
 };
 
-function buildRows(payload: any[]): ScreenerRow[] {
+function buildRows(payload: any[], filingEvidence = new Map<string, FilingEvidenceItem>()): ScreenerRow[] {
   return WATCHLIST_UNIVERSE.map(meta => {
     const item = payload.find(entry => entry.symbol === meta.ticker);
     const candles = Array.isArray(item?.candles) ? item.candles : [];
@@ -595,6 +607,9 @@ function buildRows(payload: any[]): ScreenerRow[] {
     const candlePattern = patternReport.primaryPattern === 'Pattern requires manual confirmation'
       ? meta.pattern
       : `${patternReport.patternSummary} / ${meta.pattern}`;
+    const filing = filingEvidence.get(meta.ticker);
+    const verifiedCatalyst = describeMaterialFiling(filing, meta.catalyst);
+    const dilutionRisk = filing?.dilution && filing.dilution.ageDays <= 180 ? 'HIGH' : 'UNKNOWN';
 
     const candidateInput = {
       ticker: meta.ticker,
@@ -611,11 +626,11 @@ function buildRows(payload: any[]): ScreenerRow[] {
       sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       distanceFrom52WeekHighPercent,
-      catalyst: meta.catalyst,
-      catalystAgeDays: null,
+      catalyst: verifiedCatalyst.catalyst,
+      catalystAgeDays: verifiedCatalyst.catalystAgeDays,
       revenueGrowth: null,
       earningsTrend: 'UNKNOWN',
-      cashDebtDilutionRisk: 'UNKNOWN',
+      cashDebtDilutionRisk: dilutionRisk,
       technicalPattern: candlePattern,
       recentRunUpPercent,
       sectorRotation: meta.theme.includes('AI') || meta.theme.includes('Nuclear') ? 'LEADING' : 'NEUTRAL'
@@ -641,11 +656,12 @@ function buildRows(payload: any[]): ScreenerRow[] {
       sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       distanceFrom52WeekHighPercent,
-      catalyst: meta.catalyst,
-      catalystAgeDays: null,
+      catalyst: verifiedCatalyst.catalyst,
+      catalystAgeDays: verifiedCatalyst.catalystAgeDays,
+      catalystSourceUrl: filing?.material?.sourceUrl ?? null,
       revenueGrowth: null,
       earningsTrend: 'UNKNOWN',
-      cashDebtDilutionRisk: 'UNKNOWN',
+      cashDebtDilutionRisk: dilutionRisk,
       technicalPattern: candlePattern,
       dailyScanStatus: dailyScan.status,
       dailyFailedCriteria: dailyScan.failedCriteria,
@@ -655,7 +671,7 @@ function buildRows(payload: any[]): ScreenerRow[] {
         ticker: meta.ticker,
         companyName,
         theme: meta.theme,
-        catalyst: meta.catalyst,
+        catalyst: verifiedCatalyst.catalyst,
         pattern: candlePattern,
         score: scored.score,
         entryZone: scored.entryZone,
@@ -706,7 +722,7 @@ function buildTradingPlan(row: ScreenerRow): UsStockTradingPlan {
   });
 }
 
-function buildSingleAnalysisFromPayload(payload: any[], ticker: string): SingleStockBreakoutSwingAnalysis {
+function buildSingleAnalysisFromPayload(payload: any[], ticker: string, research: any = null): SingleStockBreakoutSwingAnalysis {
   const item = payload.find(entry => entry.symbol === ticker);
   const candles = Array.isArray(item?.candles) ? item.candles : [];
   const closes = candles.map((candle: any) => Number(candle.close)).filter(Number.isFinite);
@@ -731,10 +747,13 @@ function buildSingleAnalysisFromPayload(payload: any[], ticker: string): SingleS
   const pattern = patternReport.primaryPattern === 'Pattern requires manual confirmation'
     ? fallbackPattern
     : patternReport.patternSummary;
+  const filingEvidence = research?.filingEvidence as FilingEvidenceItem | undefined;
+  const verifiedCatalyst = describeMaterialFiling(filingEvidence, 'Latest catalyst requires verification from timestamped news, filings, earnings, contracts, or product updates.');
+  const dilutionRisk = filingEvidence?.dilution && filingEvidence.dilution.ageDays <= 180 ? 'HIGH' : 'UNKNOWN';
 
   return analyzeSingleStockBreakoutSwing({
     ticker,
-    companyName: item?.quote?.shortName ?? null,
+    companyName: item?.quote?.shortName ?? research?.sec?.company ?? null,
     exchange: item?.quote?.exchange ?? null,
     sector: 'Data required',
     theme: inferThemeFromTicker(ticker),
@@ -748,11 +767,11 @@ function buildSingleAnalysisFromPayload(payload: any[], ticker: string): SingleS
     sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
     sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
     distanceFrom52WeekHighPercent,
-    catalyst: 'Latest catalyst requires manual verification from news, filings, earnings, contracts, or product updates.',
-    catalystAgeDays: null,
+    catalyst: verifiedCatalyst.catalyst,
+    catalystAgeDays: verifiedCatalyst.catalystAgeDays,
     revenueGrowth: null,
     earningsTrend: 'UNKNOWN',
-    cashDebtDilutionRisk: 'UNKNOWN',
+    cashDebtDilutionRisk: dilutionRisk,
     technicalPattern: pattern,
     recentRunUpPercent,
     sectorRotation: 'UNKNOWN',

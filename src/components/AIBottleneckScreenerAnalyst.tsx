@@ -5,6 +5,7 @@ import { buildAiBottleneckTradingPlan, type AiBottleneckTradingPlan } from '../d
 import { detectCandlePatterns } from '../domain/market/candlePatternEngine';
 import { evaluateAiBottleneckDailyEligibility, evaluateAiBottleneckSmallMidEligibility } from '../domain/strategy/aiBottleneckEligibility';
 import { apiFetch } from '../lib/apiClient';
+import { describeMaterialFiling, fetchFilingEvidence, type FilingEvidenceItem } from '../lib/researchClient';
 
 type BottleneckMeta = {
   ticker: string;
@@ -35,7 +36,8 @@ type BottleneckRow = AiBottleneckScore & {
   cashDebtProfile: string;
   backlogOrContract: string;
   catalyst: string;
-  catalystAgeDays: number;
+  catalystAgeDays: number | null;
+  catalystSourceUrl: string | null;
   valuation: { ps: number | null; pe: number | null; evSales: number | null };
   technical: {
     sma20: string;
@@ -159,10 +161,13 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
       setError(null);
       try {
         const symbols = BOTTLENECK_UNIVERSE.map(item => item.ticker).join(',');
-        const response = await apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(symbols)}`);
+        const [response, filingEvidence] = await Promise.all([
+          apiFetch(`/api/proxy/us-stock-screener?symbols=${encodeURIComponent(symbols)}`),
+          fetchFilingEvidence(BOTTLENECK_UNIVERSE.map(item => item.ticker)).catch(() => new Map<string, FilingEvidenceItem>())
+        ]);
         if (!response.ok) throw new Error('AI bottleneck screener data unavailable.');
         const payload = await response.json();
-        if (!cancelled) setRows(buildBottleneckRows(payload));
+        if (!cancelled) setRows(buildBottleneckRows(payload, filingEvidence));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'AI bottleneck screener data unavailable.');
@@ -182,20 +187,11 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
   const topTen = filteredRows.slice(0, 10);
   const topThree = topTen.slice(0, 3);
   const dailyRows = useMemo(() => {
-    const qualified = filteredRows.filter(qualifiesDailyScan).slice(0, 10);
-    if (qualified.length > 0) return qualified;
-    return filteredRows
-      .filter(row => row.group !== 'Avoid / Too Extended')
-      .slice(0, 10);
+    return filteredRows.filter(qualifiesDailyScan).slice(0, 10);
   }, [filteredRows]);
   const dailyTopThree = dailyRows.slice(0, 3);
   const smallMidRows = useMemo(() => {
-    const qualified = filteredRows.filter(qualifiesSmallMidScan).slice(0, 15);
-    if (qualified.length > 0) return qualified;
-    return filteredRows
-      .filter(row => row.group !== 'Avoid / Too Extended')
-      .filter(row => /Power|Energy|Cloud|Compute|Data Center|Optical|Photonics|Memory|Storage|Packaging|Testing|Cooling|Grid|Edge AI/i.test(`${row.category} ${row.backlogOrContract}`))
-      .slice(0, 15);
+    return filteredRows.filter(qualifiesSmallMidScan).slice(0, 15);
   }, [filteredRows]);
   const smallMidGroups = useMemo(() => groupSmallMidRows(smallMidRows), [smallMidRows]);
   const tradingPlanRows = useMemo(() => buildTradingPlanRows(smallMidRows, dailyRows), [smallMidRows, dailyRows]);
@@ -286,6 +282,7 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       <td className="px-3 py-3 text-white">{row.price === null ? DATA_REQUIRED_TH : `$${row.price.toFixed(2)}`}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">
                         {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                        {row.catalystSourceUrl && <a href={row.catalystSourceUrl} target="_blank" rel="noreferrer" className="block mt-1 text-[10px] text-cyan-300 hover:text-white">SEC source</a>}
                       </td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">{toThaiDisplay(row.technical.pattern)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.technical.rsi, 1)}</td>
@@ -514,6 +511,7 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       <td className="px-3 py-3 text-slate-300 min-w-64">{toThaiDisplay(row.backlogOrContract)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">
                         {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
+                        {row.catalystSourceUrl && <a href={row.catalystSourceUrl} target="_blank" rel="noreferrer" className="block mt-1 text-[10px] text-cyan-300 hover:text-white">SEC source</a>}
                       </td>
                       <td className="px-3 py-3 text-slate-300">P/S {formatNumber(row.valuation.ps, 1)} | EV/S {formatNumber(row.valuation.evSales, 1)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-48">SMA {toThaiDisplay(row.technical.sma20)}/{toThaiDisplay(row.technical.sma50)}/{toThaiDisplay(row.technical.sma200)} | RSI {formatNumber(row.technical.rsi, 1)} | RS {formatNumber(row.technical.relativeStrength, 1)}</td>
@@ -579,7 +577,7 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
   );
 };
 
-function buildBottleneckRows(payload: any[]): BottleneckRow[] {
+function buildBottleneckRows(payload: any[], filingEvidence = new Map<string, FilingEvidenceItem>()): BottleneckRow[] {
   return BOTTLENECK_UNIVERSE.map(meta => {
     const item = payload.find(entry => entry.symbol === meta.ticker);
     const candles = Array.isArray(item?.candles) ? item.candles : [];
@@ -603,6 +601,9 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
     const candlePattern = patternReport.primaryPattern === 'Pattern requires manual confirmation'
       ? meta.pattern
       : `${patternReport.patternSummary} / ${meta.pattern}`;
+    const filing = filingEvidence.get(meta.ticker);
+    const verifiedCatalyst = describeMaterialFiling(filing, meta.catalyst);
+    const dilutionRisk = filing?.dilution && filing.dilution.ageDays <= 180 ? 'HIGH' : meta.dilutionRisk;
 
     const scored = scoreAiBottleneckCandidate({
       ticker: meta.ticker,
@@ -618,8 +619,8 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       freeCashFlow: meta.freeCashFlow,
       cashDebtProfile: meta.cashDebtProfile,
       backlogOrContract: meta.backlogOrContract,
-      catalyst: meta.catalyst,
-      catalystAgeDays: null,
+      catalyst: verifiedCatalyst.catalyst,
+      catalystAgeDays: verifiedCatalyst.catalystAgeDays,
       valuation: meta.valuation,
       sma20Status: price !== null && sma20 !== null ? price >= sma20 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
@@ -629,7 +630,7 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       pattern: candlePattern,
       recentRunUpPercent,
       monthlyRunUpPercent,
-      dilutionRisk: meta.dilutionRisk,
+      dilutionRisk,
       fundamentalsVerified: false
     });
 
@@ -645,8 +646,9 @@ function buildBottleneckRows(payload: any[]): BottleneckRow[] {
       freeCashFlow: meta.freeCashFlow,
       cashDebtProfile: meta.cashDebtProfile,
       backlogOrContract: meta.backlogOrContract,
-      catalyst: meta.catalyst,
-      catalystAgeDays: null,
+      catalyst: verifiedCatalyst.catalyst,
+      catalystAgeDays: verifiedCatalyst.catalystAgeDays,
+      catalystSourceUrl: filing?.material?.sourceUrl ?? null,
       valuation: meta.valuation,
       issues: Array.from(new Set([...scored.issues, ...patternReport.warnings])),
       technical: {
