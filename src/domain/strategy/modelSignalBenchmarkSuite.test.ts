@@ -29,4 +29,16 @@ describe('modelSignalBenchmarkSuite', () => {
     assert(report.issues.some(issue => issue.code === 'BENCHMARK_SAMPLE_TOO_SMALL'));
     assert(report.issues.some(issue => issue.code === 'AI_UNDERPERFORMS_BASELINE'));
   });
+
+  it('blocks instead of inventing a benchmark when baseline evidence is unavailable', () => {
+    const report = benchmarkSignals({
+      samples: 250,
+      ai: { expectancyR: 0.2, hitRate: 58, maxDrawdownPercent: 10 },
+      baseline: null
+    });
+
+    assert.equal(report.status, 'BLOCK');
+    assert.equal(report.expectancyLiftR, null);
+    assert(report.issues.some(issue => issue.code === 'BASELINE_EVIDENCE_REQUIRED'));
+  });
 });

@@ -3,6 +3,7 @@ import { AlertTriangle, BarChart3, Database, LineChart, RefreshCw, Search, Shiel
 import { analyzeSingleStockBreakoutSwing, evaluateDailyUsStockScan, evaluateSmallCapAiWatchlist, scoreUsStockScreenerAnalystCandidate, type SingleStockBreakoutSwingAnalysis, type SmallCapAiGroup, type UsStockAnalystScore } from '../domain/strategy/usStockScreenerAnalyst';
 import { buildUsStockTradingPlan, type UsStockTradingPlan } from '../domain/strategy/usStockTradingPlan';
 import { detectCandlePatterns } from '../domain/market/candlePatternEngine';
+import { numberOrNull } from '../domain/market/numeric';
 import { apiFetch } from '../lib/apiClient';
 import { describeMaterialFiling, fetchFilingEvidence, type FilingEvidenceItem } from '../lib/researchClient';
 
@@ -23,6 +24,9 @@ type ScreenerRow = UsStockAnalystScore & {
   catalyst: string;
   catalystAgeDays: number | null;
   catalystSourceUrl: string | null;
+  fundamentalStatus: 'VERIFIED' | 'PARTIAL' | 'DATA_REQUIRED';
+  fundamentalSourceUrl: string | null;
+  marketCapBasis: string;
   revenueGrowth: number | null;
   earningsTrend: string;
   cashDebtDilutionRisk: string;
@@ -415,7 +419,11 @@ export const USStockScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol?: (s
                       <td className="px-3 py-3 text-slate-300 min-w-40">{toThaiDisplay(row.companyName)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-40">{toThaiDisplay(row.theme)}</td>
                       <td className="px-3 py-3 text-white">{row.price === null ? DATA_REQUIRED_TH : `$${row.price.toFixed(2)}`}</td>
-                      <td className="px-3 py-3 text-slate-300">{formatMoney(row.marketCap)}</td>
+                      <td className="px-3 py-3 text-slate-300">
+                        {formatMoney(row.marketCap)}
+                        <div className="mt-1 text-[10px] text-slate-500">{row.marketCapBasis} | SEC fundamentals: {row.fundamentalStatus}</div>
+                        {row.fundamentalSourceUrl && <a href={row.fundamentalSourceUrl} target="_blank" rel="noreferrer" className="block text-[10px] text-cyan-300 hover:text-white">SEC Company Facts</a>}
+                      </td>
                       <td className="px-3 py-3 text-slate-300">{formatVolume(row.latestVolume ?? row.averageVolume)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.relativeVolume, 2)}</td>
                       <td className={`px-3 py-3 ${row.rsi !== null && row.rsi > 85 ? 'text-rose-300' : 'text-slate-300'}`}>{formatNumber(row.rsi, 1)}</td>
@@ -604,21 +612,29 @@ function buildRows(payload: any[], filingEvidence = new Map<string, FilingEviden
     const distanceFrom52WeekHighPercent = price !== null && high52 !== null && high52 > 0 ? ((high52 - price) / high52) * 100 : null;
     const recentRunUpPercent = closes.length >= 5 ? ((closes[closes.length - 1] - closes[closes.length - 5]) / Math.max(Math.abs(closes[closes.length - 5]), 1)) * 100 : null;
     const patternReport = detectCandlePatterns(candles);
-    const candlePattern = patternReport.primaryPattern === 'Pattern requires manual confirmation'
-      ? meta.pattern
-      : `${patternReport.patternSummary} / ${meta.pattern}`;
+    const candlePattern = patternReport.patternSummary;
     const filing = filingEvidence.get(meta.ticker);
     const verifiedCatalyst = describeMaterialFiling(filing, meta.catalyst);
-    const dilutionRisk = filing?.dilution && filing.dilution.ageDays <= 180 ? 'HIGH' : 'UNKNOWN';
+    const fundamentals = filing?.fundamentals;
+    const dilutionRisk = deriveFinancialRisk(filing);
+    const marketCapEvidence = deriveMarketCap(
+      numberOrNull(item?.quote?.marketCap),
+      price,
+      verifiedRecordValue(fundamentals?.sharesOutstanding),
+      verifiedRecordValue(fundamentals?.weightedAverageShares)
+    );
+    const marketCap = marketCapEvidence.value;
+    const revenueGrowth = verifiedRecordValue(fundamentals?.revenueGrowthPercent);
+    const earningsTrend = fundamentals?.earningsTrend ?? 'UNKNOWN';
 
     const candidateInput = {
       ticker: meta.ticker,
-      companyName: item?.quote?.shortName ?? null,
+      companyName: item?.quote?.shortName ?? filing?.company ?? null,
       exchange: item?.quote?.exchange ?? null,
       sector: meta.sector,
       theme: meta.theme,
       price,
-      marketCap: numberOrNull(item?.quote?.marketCap),
+      marketCap,
       averageVolume,
       relativeVolume,
       rsi,
@@ -628,8 +644,9 @@ function buildRows(payload: any[], filingEvidence = new Map<string, FilingEviden
       distanceFrom52WeekHighPercent,
       catalyst: verifiedCatalyst.catalyst,
       catalystAgeDays: verifiedCatalyst.catalystAgeDays,
-      revenueGrowth: null,
-      earningsTrend: 'UNKNOWN',
+      catalystVerified: verifiedCatalyst.catalystVerified,
+      revenueGrowth,
+      earningsTrend,
       cashDebtDilutionRisk: dilutionRisk,
       technicalPattern: candlePattern,
       recentRunUpPercent,
@@ -639,7 +656,7 @@ function buildRows(payload: any[], filingEvidence = new Map<string, FilingEviden
     const scored = scoreUsStockScreenerAnalystCandidate(candidateInput);
     const dailyScan = evaluateDailyUsStockScan(candidateInput);
     const smallCap = evaluateSmallCapAiWatchlist(candidateInput);
-    const companyName = item?.quote?.shortName ?? 'Data required';
+    const companyName = item?.quote?.shortName ?? filing?.company ?? 'Data required';
 
     return {
       ...scored,
@@ -647,7 +664,7 @@ function buildRows(payload: any[], filingEvidence = new Map<string, FilingEviden
       sector: meta.sector,
       theme: meta.theme,
       price,
-      marketCap: numberOrNull(item?.quote?.marketCap),
+      marketCap,
       averageVolume,
       latestVolume,
       relativeVolume,
@@ -659,8 +676,11 @@ function buildRows(payload: any[], filingEvidence = new Map<string, FilingEviden
       catalyst: verifiedCatalyst.catalyst,
       catalystAgeDays: verifiedCatalyst.catalystAgeDays,
       catalystSourceUrl: filing?.material?.sourceUrl ?? null,
-      revenueGrowth: null,
-      earningsTrend: 'UNKNOWN',
+      fundamentalStatus: fundamentals?.status ?? 'DATA_REQUIRED',
+      fundamentalSourceUrl: filing?.fundamentalsSourceUrl ?? fundamentals?.revenue.sourceUrl ?? null,
+      marketCapBasis: marketCapEvidence.basis,
+      revenueGrowth,
+      earningsTrend,
       cashDebtDilutionRisk: dilutionRisk,
       technicalPattern: candlePattern,
       dailyScanStatus: dailyScan.status,
@@ -749,7 +769,14 @@ function buildSingleAnalysisFromPayload(payload: any[], ticker: string, research
     : patternReport.patternSummary;
   const filingEvidence = research?.filingEvidence as FilingEvidenceItem | undefined;
   const verifiedCatalyst = describeMaterialFiling(filingEvidence, 'Latest catalyst requires verification from timestamped news, filings, earnings, contracts, or product updates.');
-  const dilutionRisk = filingEvidence?.dilution && filingEvidence.dilution.ageDays <= 180 ? 'HIGH' : 'UNKNOWN';
+  const fundamentals = research?.sec?.fundamentals ?? filingEvidence?.fundamentals;
+  const dilutionRisk = deriveFinancialRisk(filingEvidence, fundamentals);
+  const marketCap = deriveMarketCap(
+    numberOrNull(item?.quote?.marketCap),
+    price,
+    verifiedRecordValue(fundamentals?.sharesOutstanding),
+    verifiedRecordValue(fundamentals?.weightedAverageShares)
+  ).value;
 
   return analyzeSingleStockBreakoutSwing({
     ticker,
@@ -758,7 +785,7 @@ function buildSingleAnalysisFromPayload(payload: any[], ticker: string, research
     sector: 'Data required',
     theme: inferThemeFromTicker(ticker),
     price,
-    marketCap: numberOrNull(item?.quote?.marketCap),
+    marketCap,
     averageVolume,
     latestVolume,
     relativeVolume,
@@ -769,8 +796,9 @@ function buildSingleAnalysisFromPayload(payload: any[], ticker: string, research
     distanceFrom52WeekHighPercent,
     catalyst: verifiedCatalyst.catalyst,
     catalystAgeDays: verifiedCatalyst.catalystAgeDays,
-    revenueGrowth: null,
-    earningsTrend: 'UNKNOWN',
+    catalystVerified: verifiedCatalyst.catalystVerified,
+    revenueGrowth: verifiedRecordValue(fundamentals?.revenueGrowthPercent),
+    earningsTrend: fundamentals?.earningsTrend ?? 'UNKNOWN',
     cashDebtDilutionRisk: dilutionRisk,
     technicalPattern: pattern,
     recentRunUpPercent,
@@ -1023,9 +1051,36 @@ const ScoreBadge: React.FC<{ score: number }> = ({ score }) => (
   }`}>{score}</span>
 );
 
-function numberOrNull(value: unknown): number | null {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
+function deriveMarketCap(
+  quotedMarketCap: number | null,
+  price: number | null,
+  sharesOutstanding: number | null,
+  weightedAverageShares: number | null
+): { value: number | null; basis: string } {
+  if (quotedMarketCap !== null && quotedMarketCap > 0) return { value: quotedMarketCap, basis: 'Provider market cap' };
+  if (price === null || price <= 0) return { value: null, basis: 'Data required' };
+  if (sharesOutstanding !== null && sharesOutstanding > 0) {
+    return { value: price * sharesOutstanding, basis: 'SEC point-in-time shares' };
+  }
+  if (weightedAverageShares !== null && weightedAverageShares > 0) {
+    return { value: price * weightedAverageShares, basis: 'Estimate: SEC weighted-average shares' };
+  }
+  return { value: null, basis: 'Data required' };
+}
+
+function verifiedRecordValue(record?: { value: number | null; status: string } | null): number | null {
+  return record?.status === 'VERIFIED' && Number.isFinite(record.value) ? Number(record.value) : null;
+}
+
+function deriveFinancialRisk(
+  evidence?: FilingEvidenceItem,
+  fundamentals = evidence?.fundamentals
+): 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN' {
+  if (evidence?.dilution && evidence.dilution.ageDays <= 180) return 'HIGH';
+  if (fundamentals?.cashDebtProfile === 'LEVERED') return 'HIGH';
+  if (fundamentals?.cashDebtProfile === 'MANAGEABLE') return 'MEDIUM';
+  if (fundamentals?.cashDebtProfile === 'NET_CASH') return 'LOW';
+  return 'UNKNOWN';
 }
 
 function average(values: number[]): number | null {

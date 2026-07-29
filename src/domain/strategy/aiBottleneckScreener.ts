@@ -35,6 +35,7 @@ export interface AiBottleneckInput {
   backlogOrContract: string | null;
   catalyst: string | null;
   catalystAgeDays: number | null;
+  catalystVerified?: boolean;
   valuation: {
     ps: number | null;
     pe: number | null;
@@ -50,6 +51,7 @@ export interface AiBottleneckInput {
   monthlyRunUpPercent?: number | null;
   dilutionRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
   fundamentalsVerified?: boolean;
+  demandEvidenceVerified?: boolean;
 }
 
 export interface AiBottleneckScore {
@@ -91,8 +93,8 @@ export function scoreAiBottleneckCandidate(input: AiBottleneckInput): AiBottlene
   const issues: string[] = [];
   const extended = isExtended(input);
 
-  if (!input.backlogOrContract) issues.push('BACKLOG_OR_CONTRACT_MISSING');
-  if (!input.catalyst) issues.push('CATALYST_MISSING');
+  if (!input.backlogOrContract || input.demandEvidenceVerified !== true) issues.push('VERIFIED_DEMAND_EVIDENCE_REQUIRED');
+  if (!input.catalyst || input.catalystVerified !== true) issues.push('VERIFIED_CATALYST_REQUIRED');
   if (input.catalystAgeDays !== null && input.catalystAgeDays > 180) issues.push('CATALYST_OLDER_THAN_180_DAYS');
   if (input.averageVolume !== null && input.averageVolume < 500_000) issues.push('LOW_LIQUIDITY');
   if (input.dilutionRisk === 'HIGH') issues.push('DILUTION_RISK_HIGH');
@@ -149,14 +151,14 @@ function scoreBottleneckRelevance(input: AiBottleneckInput): number {
 
 function scoreSupplyConstraint(input: AiBottleneckInput): number {
   let score = coreCategories.includes(input.category) ? 10 : 7;
-  if (input.backlogOrContract) score += 3;
-  if (/capacity|constraint|supply|backlog|contract|foundry|grid|power/i.test(input.backlogOrContract ?? '')) score += 2;
+  if (input.demandEvidenceVerified === true && input.backlogOrContract) score += 3;
+  if (input.demandEvidenceVerified === true && /capacity|constraint|supply|backlog|contract|foundry|grid|power/i.test(input.backlogOrContract ?? '')) score += 2;
   return Math.min(15, score);
 }
 
 function scoreBottleneckCatalyst(input: AiBottleneckInput): number {
   if (!input.catalyst) return 3;
-  if (input.catalystAgeDays === null) return 3;
+  if (input.catalystVerified !== true || input.catalystAgeDays === null) return 3;
   if (input.catalystAgeDays !== null && input.catalystAgeDays <= 30) return 15;
   if (input.catalystAgeDays !== null && input.catalystAgeDays <= 180) return 11;
   return 7;

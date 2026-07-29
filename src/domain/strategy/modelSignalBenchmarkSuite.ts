@@ -9,7 +9,7 @@ export interface SignalBenchmarkMetrics {
 export interface SignalBenchmarkInput {
   samples: number;
   ai: SignalBenchmarkMetrics;
-  baseline: SignalBenchmarkMetrics;
+  baseline: SignalBenchmarkMetrics | null;
   minSamples?: number;
   minExpectancyLiftR?: number;
   maxAiDrawdownPercent?: number;
@@ -23,9 +23,9 @@ export interface BenchmarkIssue {
 
 export interface SignalBenchmarkReport {
   status: BenchmarkStatus;
-  expectancyLiftR: number;
-  hitRateLift: number;
-  drawdownDeltaPercent: number;
+  expectancyLiftR: number | null;
+  hitRateLift: number | null;
+  drawdownDeltaPercent: number | null;
   aiOutperformsBaseline: boolean;
   issues: BenchmarkIssue[];
 }
@@ -35,6 +35,20 @@ export function benchmarkSignals(input: SignalBenchmarkInput): SignalBenchmarkRe
   const minSamples = input.minSamples ?? 100;
   const minExpectancyLiftR = input.minExpectancyLiftR ?? 0.05;
   const maxAiDrawdownPercent = input.maxAiDrawdownPercent ?? 20;
+  if (!input.baseline) {
+    return {
+      status: 'BLOCK',
+      expectancyLiftR: null,
+      hitRateLift: null,
+      drawdownDeltaPercent: null,
+      aiOutperformsBaseline: false,
+      issues: [{
+        code: 'BASELINE_EVIDENCE_REQUIRED',
+        severity: 'ERROR',
+        message: 'Measured baseline evidence is required before claiming incremental performance.'
+      }]
+    };
+  }
   const expectancyLiftR = round(input.ai.expectancyR - input.baseline.expectancyR, 2);
   const hitRateLift = round(input.ai.hitRate - input.baseline.hitRate, 2);
   const drawdownDeltaPercent = round(input.ai.maxDrawdownPercent - input.baseline.maxDrawdownPercent, 2);

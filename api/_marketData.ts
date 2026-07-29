@@ -469,7 +469,7 @@ export const handleUsStockScreener = async (req: ApiRequest, res: ApiResponse) =
     const chartMetaBySymbol = new Map<string, any>();
     const chartResults = await mapWithConcurrency(symbols, 5, async symbol => {
       try {
-        const chartData = await fetchJsonWithTimeout(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`, { headers: yahooHeaders });
+        const chartData = await fetchJsonWithTimeout(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2y`, { headers: yahooHeaders });
         const result = chartData?.chart?.result?.[0];
         chartMetaBySymbol.set(symbol, result?.meta || {});
         const timestamps = result?.timestamp || [];
@@ -482,7 +482,7 @@ export const handleUsStockScreener = async (req: ApiRequest, res: ApiResponse) =
           close: quotes.close?.[index] ?? null,
           volume: quotes.volume?.[index] ?? null
         })).filter((candle: any) => Number.isFinite(candle.close));
-        return [symbol, candles.slice(-220)] as const;
+        return [symbol, candles.slice(-260)] as const;
       } catch (_error) {
         return [symbol, []] as const;
       }
@@ -492,21 +492,31 @@ export const handleUsStockScreener = async (req: ApiRequest, res: ApiResponse) =
     const result = symbols.map(symbol => {
       const quote: any = quotesBySymbol.get(symbol) || {};
       const meta: any = chartMetaBySymbol.get(symbol) || {};
+      const candles = chartsBySymbol[symbol] || [];
+      const closes = candles.map((candle: any) => Number(candle.close)).filter(Number.isFinite);
+      const volumes = candles.map((candle: any) => Number(candle.volume)).filter(Number.isFinite);
+      const latest = candles[candles.length - 1] || null;
       return {
         symbol,
         quote: {
           shortName: quote.shortName || quote.longName || meta.shortName || meta.longName || null,
           exchange: quote.fullExchangeName || quote.exchange || meta.exchangeName || meta.exchange || null,
           marketCap: quote.marketCap ?? null,
-          regularMarketPrice: quote.regularMarketPrice ?? meta.regularMarketPrice ?? meta.previousClose ?? null,
-          regularMarketVolume: quote.regularMarketVolume ?? null,
-          averageDailyVolume3Month: quote.averageDailyVolume3Month ?? null,
-          fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh ?? null,
-          fiftyDayAverage: quote.fiftyDayAverage ?? null,
-          twoHundredDayAverage: quote.twoHundredDayAverage ?? null,
+          regularMarketPrice: quote.regularMarketPrice ?? meta.regularMarketPrice ?? latest?.close ?? meta.previousClose ?? null,
+          regularMarketVolume: quote.regularMarketVolume ?? latest?.volume ?? null,
+          averageDailyVolume3Month: quote.averageDailyVolume3Month ?? (volumes.length > 0 ? Math.round(volumes.slice(-60).reduce((sum: number, value: number) => sum + value, 0) / Math.max(1, Math.min(60, volumes.length))) : null),
+          fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh ?? (closes.length > 0 ? Math.max(...closes.slice(-252)) : null),
+          fiftyDayAverage: quote.fiftyDayAverage ?? smaFromValues(closes, 50),
+          twoHundredDayAverage: quote.twoHundredDayAverage ?? smaFromValues(closes, 200),
           trailingAnnualDividendYield: quote.trailingAnnualDividendYield ?? null
         },
-        candles: chartsBySymbol[symbol] || []
+        candles,
+        dataProvider: "yahoo",
+        dataQuality: {
+          adjusted: false,
+          candleCount: candles.length,
+          officialProvider: false
+        }
       };
     });
     setMarketDataHeaders(res, "yahoo", getActiveEquityProvider() === "polygon" ? "polygon" : undefined);

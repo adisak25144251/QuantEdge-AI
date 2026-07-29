@@ -1,0 +1,348 @@
+{
+  "schemaVersion": "1.0",
+  "gateVersion": "incremental-edge-v1.1",
+  "runId": "edge-20260729000238-3f719e16",
+  "generatedAt": "2026-07-29T00:02:38.670Z",
+  "status": "BLOCK",
+  "strategyStage": "RESEARCH",
+  "dataset": {
+    "source": "Yahoo Finance public chart endpoint; adjusted OHLC derived from adjclose ratio",
+    "observedAt": "2026-07-29T00:02:37.990Z",
+    "startDate": "2015-01-02",
+    "endDate": "2026-07-28",
+    "pointInTimeUniverse": false,
+    "delistedSecuritiesIncluded": false,
+    "splitAdjusted": true,
+    "dividendAdjusted": true,
+    "executionCostsMeasured": false,
+    "lookAheadBiasChecked": true,
+    "symbols": [
+      "SOUN",
+      "BBAI",
+      "AEHR",
+      "POET",
+      "INDI",
+      "OUST",
+      "NVTS",
+      "EAF",
+      "UUUU",
+      "SMR",
+      "WULF",
+      "CRDO",
+      "CORZ",
+      "IREN",
+      "MU",
+      "AAOI",
+      "LASR",
+      "ACMR",
+      "BE",
+      "EOSE"
+    ],
+    "candleCount": 38037,
+    "fingerprint": "3f719e16"
+  },
+  "execution": {
+    "feeBpsPerSide": 1,
+    "baseSlippageBpsPerSide": 8,
+    "maxSlippageBpsPerSide": 45,
+    "stopAtrMultiple": 2,
+    "targetAtrMultiple": 4,
+    "maxHoldingBars": 20,
+    "riskPerTradePercent": 1
+  },
+  "baseline": {
+    "trades": 392,
+    "precisionPercent": 40.82,
+    "expectancyR": 0.1231,
+    "maxDrawdownPercent": 14.07,
+    "profitFactor": 1.215,
+    "averageSlippageBpsPerSide": 26.81
+  },
+  "hybrid": {
+    "trades": 267,
+    "precisionPercent": 38.58,
+    "expectancyR": 0.065,
+    "maxDrawdownPercent": 18.34,
+    "profitFactor": 1.109,
+    "averageSlippageBpsPerSide": 25.39
+  },
+  "incrementalEdge": {
+    "expectancyLiftR": {
+      "estimate": -0.0581,
+      "lower95": -0.2755,
+      "upper95": 0.145
+    },
+    "precisionLiftPercent": {
+      "estimate": -2.2395,
+      "lower95": -10.0891,
+      "upper95": 5.5878
+    },
+    "drawdownDeltaPercent": 4.27
+  },
+  "walkForward": {
+    "windows": [
+      {
+        "id": 1,
+        "startTime": 1529719920000,
+        "endTime": 1580825015999,
+        "baseline": {
+          "trades": 48,
+          "precisionPercent": 29.17,
+          "expectancyR": -0.2508,
+          "maxDrawdownPercent": 11.85,
+          "profitFactor": 0.617,
+          "averageSlippageBpsPerSide": 29.81
+        },
+        "hybrid": {
+          "trades": 30,
+          "precisionPercent": 20,
+          "expectancyR": -0.5428,
+          "maxDrawdownPercent": 15.37,
+          "profitFactor": 0.288,
+          "averageSlippageBpsPerSide": 28.07
+        },
+        "expectancyLiftR": -0.292
+      },
+      {
+        "id": 2,
+        "startTime": 1580825016000,
+        "endTime": 1631930111999,
+        "baseline": {
+          "trades": 47,
+          "precisionPercent": 46.81,
+          "expectancyR": 0.3246,
+          "maxDrawdownPercent": 6.2,
+          "profitFactor": 1.615,
+          "averageSlippageBpsPerSide": 29.91
+        },
+        "hybrid": {
+          "trades": 38,
+          "precisionPercent": 42.11,
+          "expectancyR": 0.2136,
+          "maxDrawdownPercent": 6.7,
+          "profitFactor": 1.365,
+          "averageSlippageBpsPerSide": 29.32
+        },
+        "expectancyLiftR": -0.111
+      },
+      {
+        "id": 3,
+        "startTime": 1631930112000,
+        "endTime": 1683035207999,
+        "baseline": {
+          "trades": 49,
+          "precisionPercent": 34.69,
+          "expectancyR": -0.1314,
+          "maxDrawdownPercent": 10.67,
+          "profitFactor": 0.802,
+          "averageSlippageBpsPerSide": 30.25
+        },
+        "hybrid": {
+          "trades": 27,
+          "precisionPercent": 25.93,
+          "expectancyR": -0.2242,
+          "maxDrawdownPercent": 7.89,
+          "profitFactor": 0.695,
+          "averageSlippageBpsPerSide": 27.89
+        },
+        "expectancyLiftR": -0.0928
+      },
+      {
+        "id": 4,
+        "startTime": 1683035208000,
+        "endTime": 1734140303999,
+        "baseline": {
+          "trades": 98,
+          "precisionPercent": 45.92,
+          "expectancyR": 0.3076,
+          "maxDrawdownPercent": 6.95,
+          "profitFactor": 1.611,
+          "averageSlippageBpsPerSide": 26.73
+        },
+        "hybrid": {
+          "trades": 57,
+          "precisionPercent": 45.61,
+          "expectancyR": 0.2839,
+          "maxDrawdownPercent": 5.4,
+          "profitFactor": 1.554,
+          "averageSlippageBpsPerSide": 25.13
+        },
+        "expectancyLiftR": -0.0237
+      },
+      {
+        "id": 5,
+        "startTime": 1734140304000,
+        "endTime": 1785245400000,
+        "baseline": {
+          "trades": 103,
+          "precisionPercent": 40.78,
+          "expectancyR": 0.1713,
+          "maxDrawdownPercent": 7.69,
+          "profitFactor": 1.302,
+          "averageSlippageBpsPerSide": 21.34
+        },
+        "hybrid": {
+          "trades": 83,
+          "precisionPercent": 40.96,
+          "expectancyR": 0.1871,
+          "maxDrawdownPercent": 6.75,
+          "profitFactor": 1.335,
+          "averageSlippageBpsPerSide": 21.05
+        },
+        "expectancyLiftR": 0.0158
+      }
+    ],
+    "eligibleWindows": 5,
+    "positiveWindowRate": 20
+  },
+  "byRegime": {
+    "baseline": [
+      {
+        "regime": "TRENDING",
+        "trades": 6,
+        "precisionPercent": 16.67,
+        "expectancyR": -0.5268,
+        "maxDrawdownPercent": 4.04,
+        "profitFactor": 0.384,
+        "averageSlippageBpsPerSide": 20.93
+      },
+      {
+        "regime": "RANGING",
+        "trades": 20,
+        "precisionPercent": 50,
+        "expectancyR": 0.2135,
+        "maxDrawdownPercent": 2.58,
+        "profitFactor": 1.407,
+        "averageSlippageBpsPerSide": 27.06
+      },
+      {
+        "regime": "HIGH_VOLATILITY",
+        "trades": 274,
+        "precisionPercent": 40.51,
+        "expectancyR": 0.1351,
+        "maxDrawdownPercent": 12.43,
+        "profitFactor": 1.239,
+        "averageSlippageBpsPerSide": 27.71
+      },
+      {
+        "regime": "LOW_VOLATILITY",
+        "trades": 0,
+        "precisionPercent": 0,
+        "expectancyR": 0,
+        "maxDrawdownPercent": 100,
+        "profitFactor": null,
+        "averageSlippageBpsPerSide": 0
+      },
+      {
+        "regime": "UNKNOWN",
+        "trades": 92,
+        "precisionPercent": 41.3,
+        "expectancyR": 0.1099,
+        "maxDrawdownPercent": 11.74,
+        "profitFactor": 1.189,
+        "averageSlippageBpsPerSide": 24.44
+      }
+    ],
+    "hybrid": [
+      {
+        "regime": "TRENDING",
+        "trades": 6,
+        "precisionPercent": 16.67,
+        "expectancyR": -0.5268,
+        "maxDrawdownPercent": 4.04,
+        "profitFactor": 0.384,
+        "averageSlippageBpsPerSide": 20.93
+      },
+      {
+        "regime": "RANGING",
+        "trades": 23,
+        "precisionPercent": 47.83,
+        "expectancyR": 0.1239,
+        "maxDrawdownPercent": 4.4,
+        "profitFactor": 1.227,
+        "averageSlippageBpsPerSide": 27.79
+      },
+      {
+        "regime": "HIGH_VOLATILITY",
+        "trades": 173,
+        "precisionPercent": 38.73,
+        "expectancyR": 0.107,
+        "maxDrawdownPercent": 8.96,
+        "profitFactor": 1.184,
+        "averageSlippageBpsPerSide": 26.11
+      },
+      {
+        "regime": "LOW_VOLATILITY",
+        "trades": 0,
+        "precisionPercent": 0,
+        "expectancyR": 0,
+        "maxDrawdownPercent": 100,
+        "profitFactor": null,
+        "averageSlippageBpsPerSide": 0
+      },
+      {
+        "regime": "UNKNOWN",
+        "trades": 65,
+        "precisionPercent": 36.92,
+        "expectancyR": -0.013,
+        "maxDrawdownPercent": 13.88,
+        "profitFactor": 0.979,
+        "averageSlippageBpsPerSide": 23.02
+      }
+    ]
+  },
+  "issues": [
+    {
+      "code": "POINT_IN_TIME_UNIVERSE_REQUIRED",
+      "severity": "ERROR",
+      "message": "Current constituents can introduce survivorship bias."
+    },
+    {
+      "code": "DELISTED_SECURITIES_MISSING",
+      "severity": "ERROR",
+      "message": "Delisted securities must be included before production promotion."
+    },
+    {
+      "code": "EXECUTION_COSTS_MODELED",
+      "severity": "WARNING",
+      "message": "Execution costs are conservative estimates, not measured paper/live fills."
+    },
+    {
+      "code": "INCREMENTAL_EDGE_TOO_SMALL",
+      "severity": "ERROR",
+      "message": "Expectancy lift must be at least 0.05R."
+    },
+    {
+      "code": "INCREMENTAL_EDGE_NOT_STATISTICALLY_STABLE",
+      "severity": "ERROR",
+      "message": "The 95% bootstrap lower bound must be above zero."
+    },
+    {
+      "code": "WALK_FORWARD_EDGE_UNSTABLE",
+      "severity": "ERROR",
+      "message": "Positive incremental-edge windows are below 70%."
+    },
+    {
+      "code": "NEGATIVE_REGIME_EXPECTANCY",
+      "severity": "ERROR",
+      "message": "Hybrid expectancy is non-positive in UNKNOWN."
+    }
+  ],
+  "provenance": {
+    "baselineDefinition": "Long-only 20-day breakout with SMA20/SMA50, RSI 50-75, and relative volume confirmation. Signal uses completed bar; entry uses next bar open.",
+    "hybridDefinition": "Baseline setup plus an independent-confirmation ensemble. At least two of trend, benchmark-relative momentum, volatility contraction, and compatible-regime votes must pass. Entry and exits include conservative modeled costs.",
+    "sourceReferences": [
+      "https://github.com/zslucky/algorithmic_trading_book/blob/master/sat-ebook-20150618.pdf",
+      "https://github.com/zslucky/algorithmic_trading_book/blob/master/aat-ebook-20170711.pdf",
+      "https://github.com/zslucky/algorithmic_trading_book/tree/master/aat_source"
+    ]
+  },
+  "downloadFailures": [],
+  "limitations": [
+    "This run uses a current research universe and therefore cannot remove survivorship bias.",
+    "Yahoo adjusted history is suitable for research continuity, not exchange-grade execution reconstruction.",
+    "Slippage is modeled from volatility and dollar-volume tiers; measured paper fills are still required.",
+    "A PASS result is intentionally impossible until point-in-time constituents, delisted securities, and measured execution evidence are supplied."
+  ],
+  "disclaimer": "Educational research evidence only. Not personal investment advice and not approval for real-money trading."
+}

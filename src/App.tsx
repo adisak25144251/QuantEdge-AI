@@ -1157,25 +1157,12 @@ const DashboardApp = () => {
   }, [latestKlines, marketIntegrityReport]);
 
   const walkForwardOptimizer = useMemo(() => optimizeWalkForwardParameters({
-    candidates: backtestEvidence?.walkForward
+    candidates: backtestEvidence?.walkForward?.windowResults?.length
       ? [
         {
           id: 'current-parameter-set',
           parameters: { symbol: selectedChartSymbol, interval: selectedTimeframe },
-          windows: [
-            {
-              id: 1,
-              trades: Math.max(20, Math.floor((backtestEvidence.sampleSize || 0) / 4)),
-              expectancyR: backtestEvidence.walkForward.averageWindowExpectancyR,
-              maxDrawdownPercent: backtestEvidence.walkForward.maxWindowDrawdownPercent
-            },
-            {
-              id: 2,
-              trades: Math.max(20, Math.floor((backtestEvidence.sampleSize || 0) / 4)),
-              expectancyR: backtestEvidence.walkForward.minWindowExpectancyR,
-              maxDrawdownPercent: backtestEvidence.walkForward.maxWindowDrawdownPercent
-            }
-          ]
+          windows: backtestEvidence.walkForward.windowResults
         }
       ]
       : []
@@ -1329,11 +1316,7 @@ const DashboardApp = () => {
       hitRate: backtestEvidence?.outOfSampleWinRate ?? forwardScorecard.hitRate,
       maxDrawdownPercent: backtestEvidence?.maxDrawdownPercent ?? paperReadiness.drawdownPercent
     },
-    baseline: {
-      expectancyR: 0.05,
-      hitRate: 50,
-      maxDrawdownPercent: 15
-    }
+    baseline: null
   }), [backtestEvidence, forwardScorecard, paperReadiness]);
 
   const unifiedDataReliabilityV2 = useMemo(() => {
@@ -1372,11 +1355,11 @@ const DashboardApp = () => {
     outOfSampleExpectancyR: backtestEvidence?.outOfSampleExpectancyR ?? 0,
     maxDrawdownPercent: backtestEvidence?.maxDrawdownPercent ?? 100,
     walkForwardPositiveRate: backtestEvidence?.walkForward?.positiveWindowRate ?? 0,
-    monteCarloSurvivalRate: Math.max(0, Math.min(100, 100 - (backtestEvidence?.maxDrawdownPercent ?? 50) * 2)),
+    monteCarloSurvivalRate: 0,
     benchmarkExpectancyR: 0.05,
     assetAwareFees: true,
-    splitSessionAdjusted: true
-  }), [backtestEvidence]);
+    splitSessionAdjusted: !selectedIsUsEquity
+  }), [backtestEvidence, selectedIsUsEquity]);
 
   const forwardShadowEvidenceV2 = useMemo(() => evaluateForwardShadowEvidenceV2({
     forwardSignals: forwardScorecard.totalSignals,
@@ -2492,7 +2475,12 @@ const DashboardApp = () => {
             </h1>
             <p className="text-xs text-slate-500 mt-1">ข้อมูลจริง (Live Data)</p>
           </div>
-          <button className="md:hidden text-slate-500" onClick={() => setIsMobileMenuOpen(false)}>
+          <button
+            type="button"
+            aria-label="ปิดเมนู"
+            className="md:hidden text-slate-500"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -2612,6 +2600,8 @@ const DashboardApp = () => {
         <header className="h-16 bg-[#0a001a]/80 backdrop-blur-xl border-b border-fuchsia-500/30 flex items-center justify-between px-4 md:px-8 shrink-0 z-10">
           <div className="flex items-center gap-4 flex-1">
             <button 
+              type="button"
+              aria-label="เปิดเมนู"
               className="md:hidden p-2 text-fuchsia-400 hover:bg-fuchsia-500/10 rounded-lg"
               onClick={() => setIsMobileMenuOpen(true)}
             >
@@ -4189,9 +4179,15 @@ const DashboardApp = () => {
                     <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3">
                       <div className="text-[10px] uppercase text-slate-500 mb-1">Signal benchmark</div>
                       <div className={`text-sm font-bold ${modelSignalBenchmark.status === 'PASS' ? 'text-emerald-300' : modelSignalBenchmark.status === 'BLOCK' ? 'text-rose-300' : 'text-amber-300'}`}>
-                        {modelSignalBenchmark.expectancyLiftR}R
+                        {modelSignalBenchmark.expectancyLiftR === null ? 'Data required' : `${modelSignalBenchmark.expectancyLiftR}R`}
                       </div>
-                      <div className="text-[11px] text-slate-400">{modelSignalBenchmark.aiOutperformsBaseline ? 'AI beats baseline' : 'Baseline stronger'}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {modelSignalBenchmark.expectancyLiftR === null
+                          ? 'Measured baseline required'
+                          : modelSignalBenchmark.aiOutperformsBaseline
+                            ? 'AI beats baseline'
+                            : 'Baseline stronger'}
+                      </div>
                       <div className="text-[11px] text-slate-500 mt-1">{modelSignalBenchmark.issues.length} benchmark issues</div>
                     </div>
                   </div>

@@ -25,6 +25,7 @@ export interface UsStockAnalystCandidateInput {
   distanceFrom52WeekHighPercent: number | null;
   catalyst: string | null;
   catalystAgeDays?: number | null;
+  catalystVerified?: boolean;
   revenueGrowth: number | null;
   earningsTrend: 'IMPROVING' | 'STABLE' | 'DETERIORATING' | 'UNKNOWN';
   cashDebtDilutionRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
@@ -148,7 +149,7 @@ export function scoreUsStockScreenerAnalystCandidate(input: UsStockAnalystCandid
 
   const scoreBreakdown = {
     themeStrength: scoreTheme(input.theme),
-    catalystQuality: scoreCatalyst(input.catalyst, input.catalystAgeDays ?? null),
+    catalystQuality: scoreCatalyst(input.catalyst, input.catalystAgeDays ?? null, input.catalystVerified === true),
     technicalSetup: scoreTechnical(input),
     volumeLiquidity: scoreVolume(input.averageVolume, input.relativeVolume),
     financialQuality: scoreFinancial(input),
@@ -197,7 +198,9 @@ export function evaluateDailyUsStockScan(input: UsStockAnalystCandidateInput): D
   if (input.sma20Status !== 'ABOVE') failedCriteria.push('PRICE_ABOVE_SMA20');
   if (input.sma50Status !== 'ABOVE') failedCriteria.push('PRICE_ABOVE_SMA50');
   if (input.distanceFrom52WeekHighPercent === null || input.distanceFrom52WeekHighPercent > 20) failedCriteria.push('WITHIN_20_PERCENT_OF_52_WEEK_HIGH');
-  if (!input.catalyst || input.catalystAgeDays === undefined || input.catalystAgeDays === null || input.catalystAgeDays > 30) failedCriteria.push('CATALYST_WITHIN_30_DAYS');
+  if (!input.catalyst || input.catalystVerified !== true || input.catalystAgeDays === undefined || input.catalystAgeDays === null || input.catalystAgeDays > 30) {
+    failedCriteria.push('VERIFIED_CATALYST_WITHIN_30_DAYS');
+  }
   if (!recentRunUpAllowed) failedCriteria.push('EXTENDED_5_DAY_RUN_WITHOUT_NEW_BASE');
   if (matchedPatterns.length === 0) failedCriteria.push('NO_TARGET_TECHNICAL_PATTERN');
 
@@ -241,7 +244,7 @@ export function evaluateSmallCapAiWatchlist(input: UsStockAnalystCandidateInput)
 
   const scoreBreakdown = {
     technicalSetup: Math.round((scoreTechnical(input) / 20) * 30),
-    catalyst: Math.round((scoreCatalyst(input.catalyst, input.catalystAgeDays ?? null) / 15) * 20),
+    catalyst: Math.round((scoreCatalyst(input.catalyst, input.catalystAgeDays ?? null, input.catalystVerified === true) / 15) * 20),
     liquidity: Math.round((scoreVolume(input.averageVolume, input.relativeVolume) / 10) * 15),
     themeStrength: scoreTheme(input.theme),
     financialSafety: Math.round((scoreFinancial(input) / 15) * 10),
@@ -353,17 +356,17 @@ function collectMissingData(input: UsStockAnalystCandidateInput): string[] {
   if (input.relativeVolume === null) missing.push('Relative Volume');
   if (input.rsi === null) missing.push('RSI');
   if (input.distanceFrom52WeekHighPercent === null) missing.push('Distance from 52-week high');
-  if (!input.catalyst) missing.push('Catalyst');
-  if (input.catalystAgeDays === undefined || input.catalystAgeDays === null) missing.push('Catalyst Recency');
+  if (!input.catalyst || input.catalystVerified !== true) missing.push('Verified Catalyst');
+  if (input.catalystAgeDays === undefined || input.catalystAgeDays === null || input.catalystVerified !== true) missing.push('Catalyst Recency');
   if (input.revenueGrowth === null) missing.push('Revenue Growth');
   if (input.earningsTrend === 'UNKNOWN') missing.push('Earnings Trend');
   if (input.cashDebtDilutionRisk === 'UNKNOWN') missing.push('Cash/Debt/Dilution Risk');
   return missing;
 }
 
-function scoreCatalyst(catalyst: string | null, catalystAgeDays: number | null): number {
+function scoreCatalyst(catalyst: string | null, catalystAgeDays: number | null, verified: boolean): number {
   if (!catalyst) return 3;
-  if (catalystAgeDays === null) return 3;
+  if (!verified || catalystAgeDays === null) return 3;
   if (catalystAgeDays !== null && catalystAgeDays <= 30) return 15;
   if (catalystAgeDays !== null && catalystAgeDays <= 60) return 9;
   return 7;

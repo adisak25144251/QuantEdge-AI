@@ -41,6 +41,7 @@ export interface WalkForwardWindowResult {
 export interface WalkForwardStabilityReport {
   status: EvidenceStatus;
   windows: number;
+  windowResults: WalkForwardWindowResult[];
   positiveWindowRate: number;
   minWindowExpectancyR: number;
   averageWindowExpectancyR: number;
@@ -229,6 +230,7 @@ export function evaluateWalkForwardStability(
   return {
     status: issues.some(issue => issue.severity === 'ERROR') ? 'BLOCK' : 'PASS',
     windows: windows.length,
+    windowResults: windows.map(window => ({ ...window })),
     positiveWindowRate,
     minWindowExpectancyR,
     averageWindowExpectancyR,

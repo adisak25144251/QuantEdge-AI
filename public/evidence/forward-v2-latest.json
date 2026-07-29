@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0",
+  "candidateId": "US_FORWARD_HYBRID_V2",
+  "candidateHash": "sha256:3eb1b8a7fd0784c02e9fc2b485e373f2a8f42904ca62885c10baf91b8af75719",
+  "generatedAt": "2026-07-29T00:28:20.027Z",
+  "forwardStart": "2026-07-30T00:00:00.000Z",
+  "elapsedCalendarDays": 0,
+  "status": "COLLECTING",
+  "control": {
+    "signals": 0,
+    "pending": 0,
+    "open": 0,
+    "resolved": 0,
+    "precisionPercent": 0,
+    "expectancyR": 0,
+    "maxDrawdownPercent": 0,
+    "averageSlippageBpsPerSide": 0
+  },
+  "candidate": {
+    "signals": 0,
+    "pending": 0,
+    "open": 0,
+    "resolved": 0,
+    "precisionPercent": 0,
+    "expectancyR": 0,
+    "maxDrawdownPercent": 0,
+    "averageSlippageBpsPerSide": 0
+  },
+  "incrementalExpectancyR": {
+    "estimate": 0,
+    "lower95": 0,
+    "upper95": 0
+  },
+  "regimeCoverage": [
+    {
+      "regime": "TRENDING",
+      "trades": 0,
+      "expectancyR": 0
+    },
+    {
+      "regime": "RANGING",
+      "trades": 0,
+      "expectancyR": 0
+    },
+    {
+      "regime": "HIGH_VOLATILITY",
+      "trades": 0,
+      "expectancyR": 0
+    },
+    {
+      "regime": "LOW_VOLATILITY",
+      "trades": 0,
+      "expectancyR": 0
+    },
+    {
+      "regime": "UNKNOWN",
+      "trades": 0,
+      "expectancyR": 0
+    }
+  ],
+  "executionEvidence": "MODELED",
+  "ledger": {
+    "events": 1,
+    "headHash": "sha256:1ddd03929ee25c38d27085ce69d8358141e1c70b8698eee14e249fef15029dab",
+    "lastMarketThrough": null
+  },
+  "issues": [
+    {
+      "code": "FORWARD_DURATION_INCOMPLETE",
+      "severity": "PENDING",
+      "message": "Need 180 calendar days; collected 0."
+    },
+    {
+      "code": "CANDIDATE_SAMPLE_INCOMPLETE",
+      "severity": "PENDING",
+      "message": "Need 200 resolved candidate trades; collected 0."
+    },
+    {
+      "code": "CONTROL_SAMPLE_INCOMPLETE",
+      "severity": "PENDING",
+      "message": "Need 200 resolved control trades; collected 0."
+    },
+    {
+      "code": "MEASURED_EXECUTION_REQUIRED",
+      "severity": "PENDING",
+      "message": "Modeled slippage cannot satisfy the production promotion gate."
+    }
+  ],
+  "disclaimer": "Forward educational paper evidence only. Not personal investment advice or approval for real-money trading.",
+  "dataPolicy": {
+    "historicalBarsBeforeForwardStart": "INDICATOR_WARMUP_ONLY",
+    "outcomeEvaluationStart": "2026-07-30T00:00:00.000Z",
+    "parameterRetuningOn2015To2026": "FORBIDDEN",
+    "controlAndCandidateCollectedConcurrently": true
+  },
+  "limitations": [
+    "The public Yahoo feed is used for forward research continuity, not exchange-grade execution reconstruction.",
+    "Entry and exit slippage remain modeled until broker paper-fill evidence is integrated.",
+    "The frozen current-symbol universe remains vulnerable to future selection and survivorship limitations; every snapshot is retained in the ledger.",
+    "PAPER_ELIGIBLE is not approval for real-money trading."
+  ]
+}

@@ -23,3 +23,16 @@ test('extractLatestSecFact refuses unsupported or missing facts', () => {
   assert.equal(result.status, 'DATA_REQUIRED');
   assert.equal(result.value, null);
 });
+
+test('extractLatestSecFact prioritizes the latest period over a newly filed comparative fact', () => {
+  const result = extractLatestSecFact({
+    cik: 1234,
+    facts: { 'us-gaap': { Revenues: { units: { USD: [
+      { val: 12, filed: '2025-02-01', end: '2024-12-31', form: '10-K', accn: '0001-25-000001' },
+      { val: 4, filed: '2025-11-01', end: '2023-09-30', form: '10-Q', accn: '0001-25-000099' }
+    ] } } } }
+  }, ['Revenues']);
+
+  assert.equal(result.value, 12);
+  assert.equal(result.periodEnd, '2024-12-31');
+});

@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Cpu, Database, Gauge, LineChart, RefreshCw, Se
 import { scoreAiBottleneckCandidate, type AiBottleneckCategory, type AiBottleneckGroup, type AiBottleneckScore } from '../domain/strategy/aiBottleneckScreener';
 import { buildAiBottleneckTradingPlan, type AiBottleneckTradingPlan } from '../domain/strategy/aiBottleneckTradingPlan';
 import { detectCandlePatterns } from '../domain/market/candlePatternEngine';
+import { numberOrNull } from '../domain/market/numeric';
 import { evaluateAiBottleneckDailyEligibility, evaluateAiBottleneckSmallMidEligibility } from '../domain/strategy/aiBottleneckEligibility';
 import { apiFetch } from '../lib/apiClient';
 import { describeMaterialFiling, fetchFilingEvidence, type FilingEvidenceItem } from '../lib/researchClient';
@@ -38,6 +39,10 @@ type BottleneckRow = AiBottleneckScore & {
   catalyst: string;
   catalystAgeDays: number | null;
   catalystSourceUrl: string | null;
+  demandEvidenceVerified: boolean;
+  fundamentalStatus: 'VERIFIED' | 'PARTIAL' | 'DATA_REQUIRED';
+  fundamentalSourceUrl: string | null;
+  marketCapBasis: string;
   valuation: { ps: number | null; pe: number | null; evSales: number | null };
   technical: {
     sma20: string;
@@ -186,13 +191,13 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
     .sort((a, b) => b.score - a.score), [rows, categoryFilter]);
   const topTen = filteredRows.slice(0, 10);
   const topThree = topTen.slice(0, 3);
-  const dailyRows = useMemo(() => {
-    return filteredRows.filter(qualifiesDailyScan).slice(0, 10);
-  }, [filteredRows]);
+  const dailyRows = useMemo(() => [...filteredRows]
+    .sort((a, b) => Number(qualifiesDailyScan(b)) - Number(qualifiesDailyScan(a)) || b.score - a.score)
+    .slice(0, 10), [filteredRows]);
   const dailyTopThree = dailyRows.slice(0, 3);
-  const smallMidRows = useMemo(() => {
-    return filteredRows.filter(qualifiesSmallMidScan).slice(0, 15);
-  }, [filteredRows]);
+  const smallMidRows = useMemo(() => [...filteredRows]
+    .sort((a, b) => Number(qualifiesSmallMidScan(b)) - Number(qualifiesSmallMidScan(a)) || b.score - a.score)
+    .slice(0, 15), [filteredRows]);
   const smallMidGroups = useMemo(() => groupSmallMidRows(smallMidRows), [smallMidRows]);
   const tradingPlanRows = useMemo(() => buildTradingPlanRows(smallMidRows, dailyRows), [smallMidRows, dailyRows]);
   const riskRows = [...filteredRows].sort((a, b) => b.issues.length - a.issues.length || a.score - b.score).slice(0, 6);
@@ -278,7 +283,11 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       </td>
                       <td className="px-3 py-3 text-slate-300 min-w-40">{toThaiDisplay(row.companyName)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.category)}</td>
-                      <td className="px-3 py-3 text-slate-300">{formatMoney(row.marketCap)}</td>
+                      <td className="px-3 py-3 text-slate-300">
+                        {formatMoney(row.marketCap)}
+                        <div className="mt-1 text-[10px] text-slate-500">{row.marketCapBasis} | SEC fundamentals: {row.fundamentalStatus}</div>
+                        {row.fundamentalSourceUrl && <a href={row.fundamentalSourceUrl} target="_blank" rel="noreferrer" className="block text-[10px] text-cyan-300 hover:text-white">SEC Company Facts</a>}
+                      </td>
                       <td className="px-3 py-3 text-white">{row.price === null ? DATA_REQUIRED_TH : `$${row.price.toFixed(2)}`}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">
                         {toThaiDisplay(row.catalyst)} ({row.catalystAgeDays === null ? DATA_REQUIRED_TH : `${row.catalystAgeDays} วัน`})
@@ -499,7 +508,11 @@ export const AIBottleneckScreenerAnalyst = ({ onSelectSymbol }: { onSelectSymbol
                       </td>
                       <td className="px-3 py-3 text-slate-300 min-w-40">{toThaiDisplay(row.companyName)}</td>
                       <td className="px-3 py-3 text-slate-300 min-w-56">{toThaiDisplay(row.category)}</td>
-                      <td className="px-3 py-3 text-slate-300">{formatMoney(row.marketCap)}</td>
+                      <td className="px-3 py-3 text-slate-300">
+                        {formatMoney(row.marketCap)}
+                        <div className="mt-1 text-[10px] text-slate-500">{row.marketCapBasis} | SEC fundamentals: {row.fundamentalStatus}</div>
+                        {row.fundamentalSourceUrl && <a href={row.fundamentalSourceUrl} target="_blank" rel="noreferrer" className="block text-[10px] text-cyan-300 hover:text-white">SEC Company Facts</a>}
+                      </td>
                       <td className="px-3 py-3 text-white">{row.price === null ? DATA_REQUIRED_TH : `$${row.price.toFixed(2)}`}</td>
                       <td className="px-3 py-3 text-slate-300">{formatVolume(row.averageVolume)}</td>
                       <td className="px-3 py-3 text-slate-300">{formatNumber(row.relativeVolume, 2)}</td>
@@ -596,32 +609,47 @@ function buildBottleneckRows(payload: any[], filingEvidence = new Map<string, Fi
     const recentRunUpPercent = closes.length >= 5 ? ((closes[closes.length - 1] - closes[closes.length - 5]) / Math.max(Math.abs(closes[closes.length - 5]), 1)) * 100 : null;
     const monthlyRunUpPercent = closes.length >= 22 ? ((closes[closes.length - 1] - closes[closes.length - 22]) / Math.max(Math.abs(closes[closes.length - 22]), 1)) * 100 : null;
     const relativeStrength = closes.length >= 20 ? ((closes[closes.length - 1] - closes[closes.length - 20]) / Math.max(Math.abs(closes[closes.length - 20]), 1)) * 100 : null;
-    const companyName = item?.quote?.shortName ?? meta.companyName;
-    const patternReport = detectCandlePatterns(candles);
-    const candlePattern = patternReport.primaryPattern === 'Pattern requires manual confirmation'
-      ? meta.pattern
-      : `${patternReport.patternSummary} / ${meta.pattern}`;
     const filing = filingEvidence.get(meta.ticker);
+    const fundamentals = filing?.fundamentals;
+    const companyName = item?.quote?.shortName ?? filing?.company ?? meta.companyName;
+    const patternReport = detectCandlePatterns(candles);
+    const candlePattern = patternReport.patternSummary;
     const verifiedCatalyst = describeMaterialFiling(filing, meta.catalyst);
-    const dilutionRisk = filing?.dilution && filing.dilution.ageDays <= 180 ? 'HIGH' : meta.dilutionRisk;
+    const dilutionRisk = deriveBottleneckRisk(filing);
+    const marketCapEvidence = deriveMarketCap(
+      numberOrNull(item?.quote?.marketCap),
+      price,
+      verifiedRecordValue(fundamentals?.sharesOutstanding),
+      verifiedRecordValue(fundamentals?.weightedAverageShares)
+    );
+    const marketCap = marketCapEvidence.value;
+    const valuation = deriveValuation(
+      marketCap,
+      verifiedRecordValue(fundamentals?.revenue),
+      verifiedRecordValue(fundamentals?.netIncome),
+      verifiedRecordValue(fundamentals?.cash),
+      verifiedRecordValue(fundamentals?.debt)
+    );
+    const demandEvidenceVerified = false;
 
     const scored = scoreAiBottleneckCandidate({
       ticker: meta.ticker,
       companyName,
       category: meta.category,
-      marketCap: numberOrNull(item?.quote?.marketCap),
+      marketCap,
       price,
       averageVolume,
       relativeVolume,
-      revenueGrowth: meta.revenueGrowth,
-      grossMarginTrend: meta.grossMarginTrend,
-      netIncomeTrend: meta.netIncomeTrend,
-      freeCashFlow: meta.freeCashFlow,
-      cashDebtProfile: meta.cashDebtProfile,
-      backlogOrContract: meta.backlogOrContract,
+      revenueGrowth: verifiedRecordValue(fundamentals?.revenueGrowthPercent),
+      grossMarginTrend: fundamentals?.grossMarginTrend ?? 'UNKNOWN',
+      netIncomeTrend: fundamentals?.earningsTrend ?? 'UNKNOWN',
+      freeCashFlow: verifiedRecordValue(fundamentals?.freeCashFlow),
+      cashDebtProfile: fundamentals?.cashDebtProfile ?? 'UNKNOWN',
+      backlogOrContract: `Research thesis only: ${meta.backlogOrContract}`,
       catalyst: verifiedCatalyst.catalyst,
       catalystAgeDays: verifiedCatalyst.catalystAgeDays,
-      valuation: meta.valuation,
+      catalystVerified: verifiedCatalyst.catalystVerified,
+      valuation,
       sma20Status: price !== null && sma20 !== null ? price >= sma20 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma50Status: price !== null && sma50 !== null ? price >= sma50 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
       sma200Status: price !== null && sma200 !== null ? price >= sma200 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
@@ -631,25 +659,30 @@ function buildBottleneckRows(payload: any[], filingEvidence = new Map<string, Fi
       recentRunUpPercent,
       monthlyRunUpPercent,
       dilutionRisk,
-      fundamentalsVerified: false
+      fundamentalsVerified: fundamentals?.status === 'VERIFIED',
+      demandEvidenceVerified
     });
 
     return {
       ...scored,
-      marketCap: numberOrNull(item?.quote?.marketCap),
+      marketCap,
       price,
       averageVolume,
       relativeVolume,
-      revenueGrowth: meta.revenueGrowth,
-      grossMarginTrend: meta.grossMarginTrend,
-      netIncomeTrend: meta.netIncomeTrend,
-      freeCashFlow: meta.freeCashFlow,
-      cashDebtProfile: meta.cashDebtProfile,
-      backlogOrContract: meta.backlogOrContract,
+      revenueGrowth: verifiedRecordValue(fundamentals?.revenueGrowthPercent),
+      grossMarginTrend: fundamentals?.grossMarginTrend ?? 'UNKNOWN',
+      netIncomeTrend: fundamentals?.earningsTrend ?? 'UNKNOWN',
+      freeCashFlow: verifiedRecordValue(fundamentals?.freeCashFlow),
+      cashDebtProfile: fundamentals?.cashDebtProfile ?? 'UNKNOWN',
+      backlogOrContract: `Research thesis only: ${meta.backlogOrContract}`,
       catalyst: verifiedCatalyst.catalyst,
       catalystAgeDays: verifiedCatalyst.catalystAgeDays,
       catalystSourceUrl: filing?.material?.sourceUrl ?? null,
-      valuation: meta.valuation,
+      demandEvidenceVerified,
+      fundamentalStatus: fundamentals?.status ?? 'DATA_REQUIRED',
+      fundamentalSourceUrl: filing?.fundamentalsSourceUrl ?? fundamentals?.revenue.sourceUrl ?? null,
+      marketCapBasis: marketCapEvidence.basis,
+      valuation,
       issues: Array.from(new Set([...scored.issues, ...patternReport.warnings])),
       technical: {
         sma20: price !== null && sma20 !== null ? price >= sma20 ? 'ABOVE' : 'BELOW' : 'UNKNOWN',
@@ -672,7 +705,7 @@ function qualifiesDailyScan(row: BottleneckRow): boolean {
     averageVolume: row.averageVolume,
     relativeVolume: row.relativeVolume,
     catalystAgeDays: row.catalystAgeDays,
-    hasDemandEvidence: Boolean(row.backlogOrContract && row.backlogOrContract !== 'Data required'),
+    hasDemandEvidence: row.demandEvidenceVerified,
     sma20Status: row.technical.sma20,
     sma50Status: row.technical.sma50,
     rsi: row.technical.rsi,
@@ -690,7 +723,7 @@ function qualifiesSmallMidScan(row: BottleneckRow): boolean {
     averageVolume: row.averageVolume,
     relativeVolume: row.relativeVolume,
     catalystAgeDays: row.catalystAgeDays,
-    hasDemandEvidence: Boolean(row.backlogOrContract && row.backlogOrContract !== 'Data required'),
+    hasDemandEvidence: row.demandEvidenceVerified,
     sma20Status: row.technical.sma20,
     sma50Status: row.technical.sma50,
     rsi: row.technical.rsi,
@@ -708,7 +741,10 @@ function buildTradingPlanRows(smallMidRows: BottleneckRow[], dailyRows: Bottlene
   });
 
   return Array.from(unique.values())
-    .filter(row => row.group !== 'Avoid / Too Extended' || row.technical.rsi !== null && row.technical.rsi > 85 || row.issues.length > 0)
+    .filter(row => row.group !== 'Avoid / Too Extended'
+      && !(row.technical.rsi !== null && row.technical.rsi > 85)
+      && !row.issues.includes('TOO_EXTENDED_WAIT_FOR_BASE')
+      && !row.issues.includes('MONTHLY_RUNUP_OVER_100_NO_BASE'))
     .slice(0, 15)
     .map(row => ({
       row,
@@ -907,9 +943,49 @@ const DeepLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
   </div>
 );
 
-function numberOrNull(value: unknown): number | null {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
+function deriveMarketCap(
+  quotedMarketCap: number | null,
+  price: number | null,
+  sharesOutstanding: number | null,
+  weightedAverageShares: number | null
+): { value: number | null; basis: string } {
+  if (quotedMarketCap !== null && quotedMarketCap > 0) return { value: quotedMarketCap, basis: 'Provider market cap' };
+  if (price === null || price <= 0) return { value: null, basis: 'Data required' };
+  if (sharesOutstanding !== null && sharesOutstanding > 0) {
+    return { value: price * sharesOutstanding, basis: 'SEC point-in-time shares' };
+  }
+  if (weightedAverageShares !== null && weightedAverageShares > 0) {
+    return { value: price * weightedAverageShares, basis: 'Estimate: SEC weighted-average shares' };
+  }
+  return { value: null, basis: 'Data required' };
+}
+
+function verifiedRecordValue(record?: { value: number | null; status: string } | null): number | null {
+  return record?.status === 'VERIFIED' && Number.isFinite(record.value) ? Number(record.value) : null;
+}
+
+function deriveBottleneckRisk(evidence?: FilingEvidenceItem): 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN' {
+  if (evidence?.dilution && evidence.dilution.ageDays <= 180) return 'HIGH';
+  if (evidence?.fundamentals?.cashDebtProfile === 'LEVERED') return 'HIGH';
+  if (evidence?.fundamentals?.cashDebtProfile === 'MANAGEABLE') return 'MEDIUM';
+  if (evidence?.fundamentals?.cashDebtProfile === 'NET_CASH') return 'LOW';
+  return 'UNKNOWN';
+}
+
+function deriveValuation(
+  marketCap: number | null,
+  revenue: number | null,
+  netIncome: number | null,
+  cash: number | null,
+  debt: number | null
+) {
+  if (marketCap === null || marketCap <= 0) return { ps: null, pe: null, evSales: null };
+  const enterpriseValue = marketCap + Math.max(debt ?? 0, 0) - Math.max(cash ?? 0, 0);
+  return {
+    ps: revenue !== null && revenue > 0 ? marketCap / revenue : null,
+    pe: netIncome !== null && netIncome > 0 ? marketCap / netIncome : null,
+    evSales: revenue !== null && revenue > 0 && enterpriseValue > 0 ? enterpriseValue / revenue : null
+  };
 }
 
 function average(values: number[]): number | null {

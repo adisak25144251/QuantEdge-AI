@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0",
+  "hashAlgorithm": "sha256-canonical-json",
+  "definitionHash": "sha256:3eb1b8a7fd0784c02e9fc2b485e373f2a8f42904ca62885c10baf91b8af75719",
+  "definition": {
+    "candidateId": "US_FORWARD_HYBRID_V2",
+    "version": 2,
+    "frozenAt": "2026-07-29T00:00:00.000Z",
+    "forwardStart": "2026-07-30T00:00:00.000Z",
+    "stage": "FORWARD_COLLECTION",
+    "hypothesis": "A quality, relative-strength and volatility-contraction overlay improves net expectancy and drawdown versus the frozen baseline breakout on future US daily bars.",
+    "benchmark": "SPY",
+    "universe": [
+      "SOUN",
+      "BBAI",
+      "AEHR",
+      "POET",
+      "INDI",
+      "OUST",
+      "NVTS",
+      "EAF",
+      "UUUU",
+      "SMR",
+      "WULF",
+      "CRDO",
+      "CORZ",
+      "IREN",
+      "MU",
+      "AAOI",
+      "LASR",
+      "ACMR",
+      "BE",
+      "EOSE"
+    ],
+    "controlStrategy": {
+      "id": "BASELINE_BREAKOUT_FORWARD_V1",
+      "side": "LONG",
+      "breakoutLookback": 20,
+      "minimumRelativeVolume": 1.5,
+      "minimumRsi": 50,
+      "maximumRsi": 75,
+      "requireCloseAboveSma20": true,
+      "requireCloseAboveSma50": true
+    },
+    "candidateStrategy": {
+      "id": "REGIME_QUALITY_BREAKOUT_FORWARD_V2",
+      "side": "LONG",
+      "breakoutLookback": 20,
+      "minimumRelativeVolume": 1.3,
+      "minimumRsi": 52,
+      "maximumRsi": 76,
+      "requireCloseAboveSma20": true,
+      "requireSma20AboveSma50": true,
+      "requireSma50AboveSma200": true,
+      "requireReturn63AboveBenchmark": true,
+      "maximumAtr14ToAtr50": 1.25,
+      "maximumFiveDayReturn": 0.3,
+      "allowedRegimes": [
+        "TRENDING",
+        "RANGING"
+      ]
+    },
+    "execution": {
+      "entry": "NEXT_REGULAR_SESSION_OPEN",
+      "feeBpsPerSide": 1,
+      "baseSlippageBpsPerSide": 8,
+      "maximumSlippageBpsPerSide": 45,
+      "stopAtrMultiple": 2,
+      "targetAtrMultiple": 4,
+      "maximumHoldingSessions": 20,
+      "sameBarConflictPolicy": "STOP_FIRST",
+      "riskPerTradePercent": 1
+    },
+    "promotionGate": {
+      "minimumCalendarDays": 180,
+      "minimumResolvedCandidateTrades": 200,
+      "minimumResolvedControlTrades": 200,
+      "minimumExpectancyR": 0.05,
+      "minimumIncrementalExpectancyR": 0.05,
+      "requireIncrementalExpectancyLower95AboveZero": true,
+      "maximumDrawdownPercent": 15,
+      "minimumCoveredRegimes": 3,
+      "minimumTradesPerRegime": 20,
+      "requireMeasuredExecutionCosts": true
+    },
+    "dataPolicy": {
+      "preStartHistoryUse": "INDICATOR_WARMUP_ONLY",
+      "outcomeBarsMustBeOnOrAfterForwardStart": true,
+      "entryMustBeAfterSignalClose": true,
+      "pointInTimeUniverseSnapshotRequired": true,
+      "appendOnlyHashChainedLedgerRequired": true,
+      "historicalParameterRetuningForbidden": true
+    }
+  }
+}

@@ -1,4 +1,5 @@
-import { extractLatestSecFact, type SecCompanyFactsPayload } from '../src/domain/research/provenance.js';
+import type { SecCompanyFactsPayload } from '../src/domain/research/provenance.js';
+import { buildSecFundamentalSnapshot } from '../src/domain/research/secFundamentals.js';
 import { classifyRecentSecFilings, selectFilingEvidence } from '../src/domain/research/secFilings.js';
 import type { ApiRequest, ApiResponse } from './_marketData.js';
 
@@ -10,6 +11,8 @@ const POLYGON_API_KEY = process.env.POLYGON_API_KEY || '';
 const RESEARCH_RATE_LIMIT_PER_MINUTE = 10;
 
 let tickerCache: { expiresAt: number; byTicker: Map<string, number> } | null = null;
+const secResearchCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<typeof fetchSecResearchUncached>> }>();
+const filingEvidenceCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<typeof fetchSecFilingEvidenceUncached>> }>();
 const researchRateLimits = new Map<string, { startedAt: number; count: number }>();
 
 type UpstreamJson = Record<string, any>;
@@ -54,7 +57,7 @@ async function getTickerMap() {
   return byTicker;
 }
 
-async function fetchSecResearch(symbol: string, cik: number) {
+async function fetchSecResearchUncached(symbol: string, cik: number) {
   const cikPadded = String(cik).padStart(10, '0');
   const payload = await fetchJson(`${SEC_BASE}/api/xbrl/companyfacts/CIK${cikPadded}.json`, {
     'User-Agent': SEC_USER_AGENT,
@@ -65,13 +68,7 @@ async function fetchSecResearch(symbol: string, cik: number) {
     ticker: symbol,
     company: payload.entityName ?? null,
     cik,
-    fundamentals: {
-      revenue: extractLatestSecFact(payload, ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues', 'SalesRevenueNet']),
-      netIncome: extractLatestSecFact(payload, ['NetIncomeLoss', 'ProfitLoss']),
-      cash: extractLatestSecFact(payload, ['CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents']),
-      debt: extractLatestSecFact(payload, ['LongTermDebtAndFinanceLeaseObligationsCurrent', 'LongTermDebtCurrent', 'LongTermDebt']),
-      sharesOutstanding: extractLatestSecFact(payload, ['CommonStockSharesOutstanding'], ['shares'])
-    },
+    fundamentals: buildSecFundamentalSnapshot(payload),
     provenance: {
       provider: 'SEC EDGAR Company Facts',
       sourceUrl: `${SEC_BASE}/api/xbrl/companyfacts/CIK${cikPadded}.json`,
@@ -80,7 +77,15 @@ async function fetchSecResearch(symbol: string, cik: number) {
   };
 }
 
-async function fetchSecFilingEvidence(symbol: string, cik: number) {
+async function fetchSecResearch(symbol: string, cik: number) {
+  const cached = secResearchCache.get(symbol);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const value = await fetchSecResearchUncached(symbol, cik);
+  secResearchCache.set(symbol, { expiresAt: Date.now() + 30 * 60 * 1000, value });
+  return value;
+}
+
+async function fetchSecFilingEvidenceUncached(symbol: string, cik: number) {
   const cikPadded = String(cik).padStart(10, '0');
   const payload = await fetchJson(`${SEC_BASE}/submissions/CIK${cikPadded}.json`, {
     'User-Agent': SEC_USER_AGENT,
@@ -104,6 +109,14 @@ async function fetchSecFilingEvidence(symbol: string, cik: number) {
     sourceUrl: `${SEC_BASE}/submissions/CIK${cikPadded}.json`,
     fetchedAt: new Date().toISOString()
   };
+}
+
+async function fetchSecFilingEvidence(symbol: string, cik: number) {
+  const cached = filingEvidenceCache.get(symbol);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const value = await fetchSecFilingEvidenceUncached(symbol, cik);
+  filingEvidenceCache.set(symbol, { expiresAt: Date.now() + 5 * 60 * 1000, value });
+  return value;
 }
 
 async function mapWithConcurrency<T, R>(items: T[], concurrency: number, mapper: (item: T) => Promise<R>) {
@@ -172,8 +185,33 @@ export async function handleUsStockFilings(req: ApiRequest, res: ApiResponse) {
     const tickerMap = await getTickerMap();
     const results = await mapWithConcurrency(symbols, 3, async symbol => {
       const cik = tickerMap.get(symbol);
-      if (!cik) return { symbol, status: 'DATA_REQUIRED', material: null, dilution: null, provider: 'SEC EDGAR Submissions', reason: 'CIK_NOT_FOUND' };
-      return fetchSecFilingEvidence(symbol, cik).catch(() => ({ symbol, status: 'DATA_REQUIRED', material: null, dilution: null, provider: 'SEC EDGAR Submissions', reason: 'UPSTREAM_UNAVAILABLE' }));
+      if (!cik) return {
+        symbol,
+        status: 'DATA_REQUIRED',
+        material: null,
+        dilution: null,
+        fundamentals: null,
+        provider: 'SEC EDGAR',
+        reason: 'CIK_NOT_FOUND'
+      };
+      const [filing, sec] = await Promise.all([
+        fetchSecFilingEvidence(symbol, cik).catch(() => ({
+          symbol,
+          status: 'DATA_REQUIRED' as const,
+          material: null,
+          dilution: null,
+          provider: 'SEC EDGAR Submissions',
+          reason: 'UPSTREAM_UNAVAILABLE'
+        })),
+        fetchSecResearch(symbol, cik).catch(() => null)
+      ]);
+      return {
+        ...filing,
+        company: sec?.company ?? null,
+        fundamentals: sec?.fundamentals ?? null,
+        fundamentalsSourceUrl: sec?.provenance.sourceUrl ?? null,
+        fundamentalsFetchedAt: sec?.provenance.fetchedAt ?? null
+      };
     });
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=900');
     return res.json({ results, generatedAt: new Date().toISOString(), educationalOnly: true });

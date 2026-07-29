@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0",
+  "candidateId": "US_FORWARD_HYBRID_V2",
+  "candidateHash": "sha256:3eb1b8a7fd0784c02e9fc2b485e373f2a8f42904ca62885c10baf91b8af75719",
+  "forwardStart": "2026-07-30T00:00:00.000Z",
+  "createdAt": "2026-07-29T00:00:00.000Z",
+  "events": [
+    {
+      "sequence": 1,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-07-29T00:28:20.027Z",
+      "entityId": "collection:0",
+      "previousHash": "GENESIS",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-07-29T00:28:20.027Z",
+        "marketThrough": null,
+        "marketThroughBySymbol": {
+          "SOUN": null,
+          "BBAI": null,
+          "AEHR": null,
+          "POET": null,
+          "INDI": null,
+          "OUST": null,
+          "NVTS": null,
+          "EAF": null,
+          "UUUU": null,
+          "SMR": null,
+          "WULF": null,
+          "CRDO": null,
+          "CORZ": null,
+          "IREN": null,
+          "MU": null,
+          "AAOI": null,
+          "LASR": null,
+          "ACMR": null,
+          "BE": null,
+          "EOSE": null
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:1ddd03929ee25c38d27085ce69d8358141e1c70b8698eee14e249fef15029dab"
+    }
+  ]
+}

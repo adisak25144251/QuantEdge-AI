@@ -4,6 +4,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { Play, Database, Activity, Target, Settings, TrendingDown, TrendingUp, AlertTriangle, Clock, ShieldAlert, Zap, Layers, BarChart, Calculator } from 'lucide-react';
 import { RSI, MACD, EMA, SMA, BollingerBands, Stochastic, CCI, ADX, WilliamsR } from 'technicalindicators';
 import { PositionCalculator } from './PositionCalculator';
+import { IncrementalEdgeEvidencePanel } from './IncrementalEdgeEvidencePanel';
+import { ForwardCandidateEvidencePanel } from './ForwardCandidateEvidencePanel';
 import {
   analyzeRegimePerformance,
   buildWalkForwardWindows,
@@ -411,13 +413,22 @@ export const BacktestSimulator = ({
       });
       const walkForward = evaluateWalkForwardStability(walkForwardWindows.map(window => {
         const windowTrades = trades.filter((trade: any) => trade.entryIndex >= window.testStart && trade.entryIndex <= window.testEnd);
+        const windowEvidence = summarizeBacktestEvidence({
+          trades: windowTrades.map((trade: any) => ({
+            pnl: trade.pnl,
+            rMultiple: trade.rMultiple,
+            exitTime: trade.exitTime,
+            regime: trade.regime
+          })),
+          initialBalance
+        });
         return {
           id: window.id,
           trades: windowTrades.length,
           expectancyR: windowTrades.length > 0
             ? windowTrades.reduce((sum: number, trade: any) => sum + (trade.rMultiple ?? 0), 0) / windowTrades.length
             : 0,
-          maxDrawdownPercent: evidence.maxDrawdownPercent
+          maxDrawdownPercent: windowEvidence.maxDrawdownPercent
         };
       }));
       const regimePerformance = analyzeRegimePerformance(trades);
@@ -478,6 +489,9 @@ export const BacktestSimulator = ({
            </button>
         </div>
       </div>
+
+      <IncrementalEdgeEvidencePanel />
+      <ForwardCandidateEvidencePanel />
 
       {activeTab === 'CALCULATOR' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>

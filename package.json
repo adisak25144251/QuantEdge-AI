@@ -11,6 +11,8 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "experiment:incremental-edge": "tsx scripts/runIncrementalEdgeExperiment.ts",
+    "forward:collect": "tsx scripts/runForwardPaperV2.ts",
     "ci": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
