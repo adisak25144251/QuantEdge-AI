@@ -2,9 +2,9 @@
   "schemaVersion": "1.0",
   "candidateId": "US_FORWARD_HYBRID_V2",
   "candidateHash": "sha256:3eb1b8a7fd0784c02e9fc2b485e373f2a8f42904ca62885c10baf91b8af75719",
-  "generatedAt": "2026-07-31T23:28:07.964Z",
+  "generatedAt": "2026-08-03T23:32:30.487Z",
   "forwardStart": "2026-07-30T00:00:00.000Z",
-  "elapsedCalendarDays": 1,
+  "elapsedCalendarDays": 4,
   "status": "COLLECTING",
   "control": {
     "signals": 0,
@@ -60,15 +60,15 @@
   ],
   "executionEvidence": "MODELED",
   "ledger": {
-    "events": 3,
-    "headHash": "sha256:a1b34c3da9d6b7c5fa45d5e0d622cf5cbdb7883aedf6b2c2fe551fbd9e8dae9f",
-    "lastMarketThrough": "2026-07-31T13:30:00.000Z"
+    "events": 4,
+    "headHash": "sha256:f37202e51ef6953378ebc2adab25e513f2d7ca020303f24e22d314c20c624d0b",
+    "lastMarketThrough": "2026-08-03T13:30:00.000Z"
   },
   "issues": [
     {
       "code": "FORWARD_DURATION_INCOMPLETE",
       "severity": "PENDING",
-      "message": "Need 180 calendar days; collected 1."
+      "message": "Need 180 calendar days; collected 4."
     },
     {
       "code": "CANDIDATE_SAMPLE_INCOMPLETE",
