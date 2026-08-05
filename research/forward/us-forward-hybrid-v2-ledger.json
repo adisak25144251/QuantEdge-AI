@@ -299,6 +299,65 @@
         "failures": []
       },
       "eventHash": "sha256:061db81c831f58890b4001cd6c6dd63c81b426e338caa5a80edee84a81247694"
+    },
+    {
+      "sequence": 6,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-05T23:26:26.166Z",
+      "entityId": "collection:1785936600000:2026-08-05T23:26:26.166Z",
+      "previousHash": "sha256:061db81c831f58890b4001cd6c6dd63c81b426e338caa5a80edee84a81247694",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-05T23:26:26.166Z",
+        "marketThrough": 1785936600000,
+        "marketThroughBySymbol": {
+          "SOUN": 1785936600000,
+          "BBAI": 1785936600000,
+          "AEHR": 1785936600000,
+          "POET": 1785936600000,
+          "INDI": 1785936600000,
+          "OUST": 1785936600000,
+          "NVTS": 1785936600000,
+          "EAF": 1785936600000,
+          "UUUU": 1785936600000,
+          "SMR": 1785936600000,
+          "WULF": 1785936600000,
+          "CRDO": 1785936600000,
+          "CORZ": 1785936600000,
+          "IREN": 1785936600000,
+          "MU": 1785936600000,
+          "AAOI": 1785936600000,
+          "LASR": 1785936600000,
+          "ACMR": 1785936600000,
+          "BE": 1785936600000,
+          "EOSE": 1785936600000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:42836f645903e32415c12614dd139721744adf0995e81e987a3cd0ef9983ef98"
     }
   ]
 }
