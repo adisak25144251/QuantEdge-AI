@@ -358,6 +358,97 @@
         "failures": []
       },
       "eventHash": "sha256:42836f645903e32415c12614dd139721744adf0995e81e987a3cd0ef9983ef98"
+    },
+    {
+      "sequence": 7,
+      "type": "SIGNAL_ISSUED",
+      "occurredAt": "2026-08-07T01:35:42.933Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:42836f645903e32415c12614dd139721744adf0995e81e987a3cd0ef9983ef98",
+      "payload": {
+        "strategyId": "BASELINE_BREAKOUT_FORWARD_V1",
+        "symbol": "SOUN",
+        "signalTime": 1786023000000,
+        "signalClose": 7.079999923706055,
+        "atrAtSignal": 0.469357,
+        "regime": "HIGH_VOLATILITY",
+        "slippageBpsPerSide": 17.94,
+        "indicatorSnapshot": {
+          "sma20": 6.367249917984009,
+          "sma50": 6.871899967193603,
+          "sma200": 9.254000000953674,
+          "atr14": 0.46935721806117464,
+          "atr50": 0.4680200481414795,
+          "rsi14": 62.423309316445305,
+          "relativeVolume20": 2.5202839573482123,
+          "return5": 0.1530944751890515,
+          "return63": -0.2443970106533666,
+          "benchmarkReturn63": 0.05002519976357922,
+          "priorHigh20": 6.880000114440918,
+          "regime": "HIGH_VOLATILITY"
+        },
+        "signalCandleFingerprint": "SOUN:1786023000000:8.045000076293945:8.1899995803833:7:7.079999923706055:88361647"
+      },
+      "eventHash": "sha256:7dc4cffabba52140592a41501ff476c1fbbadd14f55b624ff0d996ca0dcf7794"
+    },
+    {
+      "sequence": 8,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-07T01:35:42.933Z",
+      "entityId": "collection:1786023000000:2026-08-07T01:35:42.933Z",
+      "previousHash": "sha256:7dc4cffabba52140592a41501ff476c1fbbadd14f55b624ff0d996ca0dcf7794",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-07T01:35:42.933Z",
+        "marketThrough": 1786023000000,
+        "marketThroughBySymbol": {
+          "SOUN": 1786023000000,
+          "BBAI": 1786023000000,
+          "AEHR": 1786023000000,
+          "POET": 1786023000000,
+          "INDI": 1786023000000,
+          "OUST": 1786023000000,
+          "NVTS": 1786023000000,
+          "EAF": 1786023000000,
+          "UUUU": 1786023000000,
+          "SMR": 1786023000000,
+          "WULF": 1786023000000,
+          "CRDO": 1786023000000,
+          "CORZ": 1786023000000,
+          "IREN": 1786023000000,
+          "MU": 1786023000000,
+          "AAOI": 1786023000000,
+          "LASR": 1786023000000,
+          "ACMR": 1786023000000,
+          "BE": 1786023000000,
+          "EOSE": 1786023000000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:4256c6283798976451869792fa93bc08eccfbec59ece9f8a656cbbb4337bb2e8"
     }
   ]
 }
