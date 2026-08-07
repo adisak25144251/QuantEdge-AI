@@ -449,6 +449,95 @@
         "failures": []
       },
       "eventHash": "sha256:4256c6283798976451869792fa93bc08eccfbec59ece9f8a656cbbb4337bb2e8"
+    },
+    {
+      "sequence": 9,
+      "type": "ENTRY_FILLED",
+      "occurredAt": "2026-08-07T23:00:41.753Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:4256c6283798976451869792fa93bc08eccfbec59ece9f8a656cbbb4337bb2e8",
+      "payload": {
+        "entryTime": 1786109400000,
+        "entryPrice": 7.194885,
+        "stopPrice": 6.256171,
+        "targetPrice": 9.072313,
+        "fillSource": "NEXT_REGULAR_SESSION_OPEN",
+        "executionCostsMeasured": false
+      },
+      "eventHash": "sha256:8fae1e9cd9987b9cb2931628c5dd18842b5e13b8d6925f6d4f918bbba4055c84"
+    },
+    {
+      "sequence": 10,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-07T23:00:41.753Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:8fae1e9cd9987b9cb2931628c5dd18842b5e13b8d6925f6d4f918bbba4055c84",
+      "payload": {
+        "barTime": 1786109400000,
+        "high": 8.125,
+        "low": 7.085000038146973,
+        "close": 8.020000457763672
+      },
+      "eventHash": "sha256:2074cad2ff346e0c71adc92f7b46d1b988620140c6773706f8d15a8e9c5b7cc6"
+    },
+    {
+      "sequence": 11,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-07T23:00:41.753Z",
+      "entityId": "collection:1786109400000:2026-08-07T23:00:41.753Z",
+      "previousHash": "sha256:2074cad2ff346e0c71adc92f7b46d1b988620140c6773706f8d15a8e9c5b7cc6",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-07T23:00:41.753Z",
+        "marketThrough": 1786109400000,
+        "marketThroughBySymbol": {
+          "SOUN": 1786109400000,
+          "BBAI": 1786109400000,
+          "AEHR": 1786109400000,
+          "POET": 1786109400000,
+          "INDI": 1786109400000,
+          "OUST": 1786109400000,
+          "NVTS": 1786109400000,
+          "EAF": 1786109400000,
+          "UUUU": 1786109400000,
+          "SMR": 1786109400000,
+          "WULF": 1786109400000,
+          "CRDO": 1786109400000,
+          "CORZ": 1786109400000,
+          "IREN": 1786109400000,
+          "MU": 1786109400000,
+          "AAOI": 1786109400000,
+          "LASR": 1786109400000,
+          "ACMR": 1786109400000,
+          "BE": 1786109400000,
+          "EOSE": 1786109400000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:8805d9cb911dcdc71b0ddfe60f4e2772178df55102b589cfb79d3c7f4fa49034"
     }
   ]
 }
