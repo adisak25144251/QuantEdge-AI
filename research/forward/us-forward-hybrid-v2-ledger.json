@@ -684,6 +684,79 @@
         "failures": []
       },
       "eventHash": "sha256:ec00841c5a4a177b5b82aa2c68530070793128e237ef01caf9f4317c490e04c5"
+    },
+    {
+      "sequence": 16,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-12T23:07:17.275Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:ec00841c5a4a177b5b82aa2c68530070793128e237ef01caf9f4317c490e04c5",
+      "payload": {
+        "barTime": 1786541400000,
+        "high": 7.565000057220459,
+        "low": 7.289999961853027,
+        "close": 7.400000095367432
+      },
+      "eventHash": "sha256:55265845144eec514c5e1a2eba46a7d24ed39d283dffeb7cb45921cc7b2e9230"
+    },
+    {
+      "sequence": 17,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-12T23:07:17.275Z",
+      "entityId": "collection:1786541400000:2026-08-12T23:07:17.275Z",
+      "previousHash": "sha256:55265845144eec514c5e1a2eba46a7d24ed39d283dffeb7cb45921cc7b2e9230",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-12T23:07:17.275Z",
+        "marketThrough": 1786541400000,
+        "marketThroughBySymbol": {
+          "SOUN": 1786541400000,
+          "BBAI": 1786541400000,
+          "AEHR": 1786541400000,
+          "POET": 1786541400000,
+          "INDI": 1786541400000,
+          "OUST": 1786541400000,
+          "NVTS": 1786541400000,
+          "EAF": 1786541400000,
+          "UUUU": 1786541400000,
+          "SMR": 1786541400000,
+          "WULF": 1786541400000,
+          "CRDO": 1786541400000,
+          "CORZ": 1786541400000,
+          "IREN": 1786541400000,
+          "MU": 1786541400000,
+          "AAOI": 1786541400000,
+          "LASR": 1786541400000,
+          "ACMR": 1786541400000,
+          "BE": 1786541400000,
+          "EOSE": 1786541400000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:73c67b65aec076d632034d93ebbff05576945003447db0d44b29bc63e52fd3a6"
     }
   ]
 }
