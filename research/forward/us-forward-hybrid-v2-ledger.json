@@ -830,6 +830,143 @@
         "failures": []
       },
       "eventHash": "sha256:cc1a991c5b656a408e04c5410f616784f8c75dccabd6b7b9fa38aeee8921d44e"
+    },
+    {
+      "sequence": 20,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-14T22:44:54.024Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:cc1a991c5b656a408e04c5410f616784f8c75dccabd6b7b9fa38aeee8921d44e",
+      "payload": {
+        "barTime": 1786714200000,
+        "high": 7.619500160217285,
+        "low": 7.360000133514404,
+        "close": 7.429999828338623
+      },
+      "eventHash": "sha256:288c57ba217b40dceacac9fc2cd3c379f5db0506d00b81ceb10ea9ed4d3e39ed"
+    },
+    {
+      "sequence": 21,
+      "type": "SIGNAL_ISSUED",
+      "occurredAt": "2026-08-14T22:44:54.024Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:INDI:2026-08-14",
+      "previousHash": "sha256:288c57ba217b40dceacac9fc2cd3c379f5db0506d00b81ceb10ea9ed4d3e39ed",
+      "payload": {
+        "strategyId": "BASELINE_BREAKOUT_FORWARD_V1",
+        "symbol": "INDI",
+        "signalTime": 1786714200000,
+        "signalClose": 4.710000038146973,
+        "atrAtSignal": 0.376429,
+        "regime": "HIGH_VOLATILITY",
+        "slippageBpsPerSide": 24.99,
+        "indicatorSnapshot": {
+          "sma20": 3.643000030517578,
+          "sma50": 3.9276000118255614,
+          "sma200": 3.860900011062622,
+          "atr14": 0.3764285700661795,
+          "atr50": 0.37019999980926516,
+          "rsi14": 69.41896006627307,
+          "relativeVolume20": 2.0677580994389215,
+          "return5": 0.16584160460898523,
+          "return63": 0.09027774328435045,
+          "benchmarkReturn63": 0.04032513260724491,
+          "priorHigh20": 4.360000133514404,
+          "regime": "HIGH_VOLATILITY"
+        },
+        "signalCandleFingerprint": "INDI:1786714200000:4.074999809265137:4.739999771118164:4.014999866485596:4.710000038146973:12338478"
+      },
+      "eventHash": "sha256:acc1500655b639cf235f546ae187a2ecf68ed732ea24fc557e98957d79fc11ad"
+    },
+    {
+      "sequence": 22,
+      "type": "SIGNAL_ISSUED",
+      "occurredAt": "2026-08-14T22:44:54.024Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:AAOI:2026-08-14",
+      "previousHash": "sha256:acc1500655b639cf235f546ae187a2ecf68ed732ea24fc557e98957d79fc11ad",
+      "payload": {
+        "strategyId": "BASELINE_BREAKOUT_FORWARD_V1",
+        "symbol": "AAOI",
+        "signalTime": 1786714200000,
+        "signalClose": 150.27999877929688,
+        "atrAtSignal": 17.090214,
+        "regime": "HIGH_VOLATILITY",
+        "slippageBpsPerSide": 20,
+        "indicatorSnapshot": {
+          "sma20": 115.38549995422363,
+          "sma50": 133.94240020751954,
+          "sma200": 94.98652516365051,
+          "atr14": 17.090214320591517,
+          "atr50": 17.483500213623046,
+          "rsi14": 69.94373032648315,
+          "relativeVolume20": 1.5941794481777811,
+          "return5": 0.10801440219029934,
+          "return63": -0.2617773081869018,
+          "benchmarkReturn63": 0.04032513260724491,
+          "priorHigh20": 149.35000610351562,
+          "regime": "HIGH_VOLATILITY"
+        },
+        "signalCandleFingerprint": "AAOI:1786714200000:130.38999938964844:153.38999938964844:130.38999938964844:150.27999877929688:18618908"
+      },
+      "eventHash": "sha256:865a5e4b9e0151791070d46a4b70a131cfc4af5260c9dabdd71adfd09818f411"
+    },
+    {
+      "sequence": 23,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-14T22:44:54.024Z",
+      "entityId": "collection:1786714200000:2026-08-14T22:44:54.024Z",
+      "previousHash": "sha256:865a5e4b9e0151791070d46a4b70a131cfc4af5260c9dabdd71adfd09818f411",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-14T22:44:54.024Z",
+        "marketThrough": 1786714200000,
+        "marketThroughBySymbol": {
+          "SOUN": 1786714200000,
+          "BBAI": 1786714200000,
+          "AEHR": 1786714200000,
+          "POET": 1786714200000,
+          "INDI": 1786714200000,
+          "OUST": 1786714200000,
+          "NVTS": 1786714200000,
+          "EAF": 1786714200000,
+          "UUUU": 1786714200000,
+          "SMR": 1786714200000,
+          "WULF": 1786714200000,
+          "CRDO": 1786714200000,
+          "CORZ": 1786714200000,
+          "IREN": 1786714200000,
+          "MU": 1786714200000,
+          "AAOI": 1786714200000,
+          "LASR": 1786714200000,
+          "ACMR": 1786714200000,
+          "BE": 1786714200000,
+          "EOSE": 1786714200000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:063764fa1a82e3eb8b306236fee2bf35d7a0c4c8f70b25980e582f3ed4d68dff"
     }
   ]
 }
