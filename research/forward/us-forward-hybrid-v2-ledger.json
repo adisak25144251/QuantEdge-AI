@@ -967,6 +967,139 @@
         "failures": []
       },
       "eventHash": "sha256:063764fa1a82e3eb8b306236fee2bf35d7a0c4c8f70b25980e582f3ed4d68dff"
+    },
+    {
+      "sequence": 24,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:063764fa1a82e3eb8b306236fee2bf35d7a0c4c8f70b25980e582f3ed4d68dff",
+      "payload": {
+        "barTime": 1786973400000,
+        "high": 7.3420000076293945,
+        "low": 6.920000076293945,
+        "close": 7.039999961853027
+      },
+      "eventHash": "sha256:d2854001055e42df690efe9cbdee9641ab3e01b06418c4e838b232e28b2dedf9"
+    },
+    {
+      "sequence": 25,
+      "type": "ENTRY_FILLED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:INDI:2026-08-14",
+      "previousHash": "sha256:d2854001055e42df690efe9cbdee9641ab3e01b06418c4e838b232e28b2dedf9",
+      "payload": {
+        "entryTime": 1786973400000,
+        "entryPrice": 4.653601,
+        "stopPrice": 3.900743,
+        "targetPrice": 6.159317,
+        "fillSource": "NEXT_REGULAR_SESSION_OPEN",
+        "executionCostsMeasured": false
+      },
+      "eventHash": "sha256:03889345b5d78c24eee25acac0507b9f9c35d3e0192863c90da7f3580994a833"
+    },
+    {
+      "sequence": 26,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:INDI:2026-08-14",
+      "previousHash": "sha256:03889345b5d78c24eee25acac0507b9f9c35d3e0192863c90da7f3580994a833",
+      "payload": {
+        "barTime": 1786973400000,
+        "high": 5.135000228881836,
+        "low": 4.626200199127197,
+        "close": 4.710000038146973
+      },
+      "eventHash": "sha256:16fcd3afdc7c3c975ddce2fa45fc349f080bc6584b246c30cec8e705f54d4804"
+    },
+    {
+      "sequence": 27,
+      "type": "ENTRY_FILLED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:AAOI:2026-08-14",
+      "previousHash": "sha256:16fcd3afdc7c3c975ddce2fa45fc349f080bc6584b246c30cec8e705f54d4804",
+      "payload": {
+        "entryTime": 1786973400000,
+        "entryPrice": 152.955294,
+        "stopPrice": 118.774866,
+        "targetPrice": 221.31615,
+        "fillSource": "NEXT_REGULAR_SESSION_OPEN",
+        "executionCostsMeasured": false
+      },
+      "eventHash": "sha256:ce57add46e568098a4bdac4b5a096cc7db80c0145e1379209db25bd32666eb4b"
+    },
+    {
+      "sequence": 28,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:AAOI:2026-08-14",
+      "previousHash": "sha256:ce57add46e568098a4bdac4b5a096cc7db80c0145e1379209db25bd32666eb4b",
+      "payload": {
+        "barTime": 1786973400000,
+        "high": 160.99000549316406,
+        "low": 147.3491973876953,
+        "close": 154.88999938964844
+      },
+      "eventHash": "sha256:68e60d2d57f1ca9eb0411a7ed662b72f2e8d2565a0fff0372585f2a5e801a9b6"
+    },
+    {
+      "sequence": 29,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-17T22:46:16.318Z",
+      "entityId": "collection:1786973400000:2026-08-17T22:46:16.318Z",
+      "previousHash": "sha256:68e60d2d57f1ca9eb0411a7ed662b72f2e8d2565a0fff0372585f2a5e801a9b6",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-17T22:46:16.318Z",
+        "marketThrough": 1786973400000,
+        "marketThroughBySymbol": {
+          "SOUN": 1786973400000,
+          "BBAI": 1786973400000,
+          "AEHR": 1786973400000,
+          "POET": 1786973400000,
+          "INDI": 1786973400000,
+          "OUST": 1786973400000,
+          "NVTS": 1786973400000,
+          "EAF": 1786973400000,
+          "UUUU": 1786973400000,
+          "SMR": 1786973400000,
+          "WULF": 1786973400000,
+          "CRDO": 1786973400000,
+          "CORZ": 1786973400000,
+          "IREN": 1786973400000,
+          "MU": 1786973400000,
+          "AAOI": 1786973400000,
+          "LASR": 1786973400000,
+          "ACMR": 1786973400000,
+          "BE": 1786973400000,
+          "EOSE": 1786973400000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:7f673a2e9579054cbbd60617aa13386f75861b412a59612a959fd6016f724ee6"
     }
   ]
 }
