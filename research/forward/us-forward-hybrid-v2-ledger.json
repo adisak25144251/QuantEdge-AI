@@ -1100,6 +1100,107 @@
         "failures": []
       },
       "eventHash": "sha256:7f673a2e9579054cbbd60617aa13386f75861b412a59612a959fd6016f724ee6"
+    },
+    {
+      "sequence": 30,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-18T22:45:54.783Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:SOUN:2026-08-06",
+      "previousHash": "sha256:7f673a2e9579054cbbd60617aa13386f75861b412a59612a959fd6016f724ee6",
+      "payload": {
+        "barTime": 1787059800000,
+        "high": 7.164999961853027,
+        "low": 6.849999904632568,
+        "close": 6.989999771118164
+      },
+      "eventHash": "sha256:bf2259116a002a4d8b40508929ebb042b848cd7468687c038fbf18c21d48fb48"
+    },
+    {
+      "sequence": 31,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-18T22:45:54.783Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:INDI:2026-08-14",
+      "previousHash": "sha256:bf2259116a002a4d8b40508929ebb042b848cd7468687c038fbf18c21d48fb48",
+      "payload": {
+        "barTime": 1787059800000,
+        "high": 4.5,
+        "low": 4.119999885559082,
+        "close": 4.340000152587891
+      },
+      "eventHash": "sha256:77050a0d246cd641daf383913a297e6dab7d14527e47ad15623fd8c7ad495b57"
+    },
+    {
+      "sequence": 32,
+      "type": "BAR_OBSERVED",
+      "occurredAt": "2026-08-18T22:45:54.783Z",
+      "entityId": "US_FORWARD_HYBRID_V2:BASELINE_BREAKOUT_FORWARD_V1:AAOI:2026-08-14",
+      "previousHash": "sha256:77050a0d246cd641daf383913a297e6dab7d14527e47ad15623fd8c7ad495b57",
+      "payload": {
+        "barTime": 1787059800000,
+        "high": 151.41220092773438,
+        "low": 131.22000122070312,
+        "close": 131.41000366210938
+      },
+      "eventHash": "sha256:d590d0d638d39104347f955f5ee27214eee8f329993b299d9bdc01a42d9a0a28"
+    },
+    {
+      "sequence": 33,
+      "type": "COLLECTION_COMPLETED",
+      "occurredAt": "2026-08-18T22:45:54.783Z",
+      "entityId": "collection:1787059800000:2026-08-18T22:45:54.783Z",
+      "previousHash": "sha256:d590d0d638d39104347f955f5ee27214eee8f329993b299d9bdc01a42d9a0a28",
+      "payload": {
+        "provider": "Yahoo Finance public adjusted daily chart endpoint",
+        "observedAt": "2026-08-18T22:45:54.783Z",
+        "marketThrough": 1787059800000,
+        "marketThroughBySymbol": {
+          "SOUN": 1787059800000,
+          "BBAI": 1787059800000,
+          "AEHR": 1787059800000,
+          "POET": 1787059800000,
+          "INDI": 1787059800000,
+          "OUST": 1787059800000,
+          "NVTS": 1787059800000,
+          "EAF": 1787059800000,
+          "UUUU": 1787059800000,
+          "SMR": 1787059800000,
+          "WULF": 1787059800000,
+          "CRDO": 1787059800000,
+          "CORZ": 1787059800000,
+          "IREN": 1787059800000,
+          "MU": 1787059800000,
+          "AAOI": 1787059800000,
+          "LASR": 1787059800000,
+          "ACMR": 1787059800000,
+          "BE": 1787059800000,
+          "EOSE": 1787059800000
+        },
+        "executionCostsMeasured": false,
+        "universeSnapshot": [
+          "SOUN",
+          "BBAI",
+          "AEHR",
+          "POET",
+          "INDI",
+          "OUST",
+          "NVTS",
+          "EAF",
+          "UUUU",
+          "SMR",
+          "WULF",
+          "CRDO",
+          "CORZ",
+          "IREN",
+          "MU",
+          "AAOI",
+          "LASR",
+          "ACMR",
+          "BE",
+          "EOSE"
+        ],
+        "failures": []
+      },
+      "eventHash": "sha256:4b0467bfb5a1528f99ca2183cc14ccbcbc036660ab50a788f0001028ca4530a4"
     }
   ]
 }
